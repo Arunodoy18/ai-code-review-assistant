@@ -36,15 +36,13 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_URL
-        fromService:
-          type: web
-          name: ai-code-review-backend
-          property: url
+        sync: false
 
   # 3. Redis Cache
   - type: redis
     name: ai-code-review-redis
-    plan: free # Note: Free tier Redis is ephemeral
+    plan: free
+    ipAllowList: []
 
 databases:
   - name: ai-code-review-db
