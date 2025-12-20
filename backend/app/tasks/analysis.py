@@ -1,0 +1,249 @@
+from app.tasks import celery_app
+from app.database import SessionLocal
+from app.models import AnalysisRun, Finding, RunStatus, FindingSeverity, FindingCategory
+from app.services.github_service import GitHubService
+from app.services.analyzer_service import AnalyzerService
+from app.services.llm_service import LLMService
+from app.services.diff_parser import DiffParser
+from datetime import datetime
+from collections import defaultdict
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+@celery_app.task(bind=True, max_retries=3)
+def analyze_pr_task(self, run_id: int):
+    """
+    Celery task to analyze a PR
+    """
+    db = SessionLocal()
+    
+    try:
+        # Get analysis run
+        run = db.query(AnalysisRun).filter(AnalysisRun.id == run_id).first()
+        if not run:
+            logger.error(f"Run {run_id} not found")
+            return
+        
+        # Update status
+        run.status = RunStatus.RUNNING
+        db.commit()
+        
+        # Get project and GitHub service
+        project = run.project
+        github_service = GitHubService(project.github_installation_id)
+        
+        # Create status check
+        github_service.create_status_check(
+            repo_full_name=project.github_repo_full_name,
+            commit_sha=run.head_sha,
+            state="pending",
+            description="AI code review in progress..."
+        )
+        
+        # Get PR diff and files
+        logger.info(f"Fetching PR #{run.pr_number} data...")
+        diff_data = github_service.get_pr_diff(
+            project.github_repo_full_name,
+            run.pr_number
+        )
+        
+        # Initialize services
+        analyzer_service = AnalyzerService(project.config)
+        llm_service = LLMService()
+        
+        # Run rule-based analysis
+        logger.info("Running rule-based analysis...")
+        rule_findings = analyzer_service.analyze_diff(diff_data)
+        
+        # Run AI analysis on selected hunks
+        logger.info("Running AI analysis...")
+        ai_findings = llm_service.analyze_diff(diff_data, rule_findings)
+        
+        # Merge findings
+        all_findings = rule_findings + ai_findings
+        
+        # Deduplicate and prioritize findings
+        logger.info(f"Found {len(all_findings)} total issues, deduplicating...")
+        deduplicated_findings = deduplicate_findings(all_findings)
+        logger.info(f"After deduplication: {len(deduplicated_findings)} issues")
+        
+        # Save findings to database
+        for finding_data in deduplicated_findings:
+            finding = Finding(
+                run_id=run.id,
+                file_path=finding_data["file_path"],
+                line_number=finding_data.get("line_number"),
+                end_line_number=finding_data.get("end_line_number"),
+                severity=finding_data["severity"],
+                category=finding_data["category"],
+                rule_id=finding_data.get("rule_id"),
+                title=finding_data["title"],
+                description=finding_data["description"],
+                suggestion=finding_data.get("suggestion"),
+                code_snippet=finding_data.get("code_snippet"),
+                is_ai_generated=finding_data.get("is_ai_generated", 0),
+                finding_metadata=finding_data.get("finding_metadata", {})
+            )
+            db.add(finding)
+        
+        # Update run metadata
+        run.run_metadata["files_analyzed"] = len(diff_data)
+        run.run_metadata["findings_count"] = len(deduplicated_findings)
+        run.run_metadata["rule_findings"] = len(rule_findings)
+        run.run_metadata["ai_findings"] = len(ai_findings)
+        run.completed_at = datetime.utcnow()
+        run.status = RunStatus.COMPLETED
+        db.commit()
+        
+        # Post results to PR
+        logger.info("Posting results to PR...")
+        post_findings_to_pr(github_service, run, deduplicated_findings, project.github_repo_full_name)
+        
+        # Create final status check
+        critical_count = sum(1 for f in deduplicated_findings if f["severity"] == FindingSeverity.CRITICAL)
+        high_count = sum(1 for f in deduplicated_findings if f["severity"] == FindingSeverity.HIGH)
+        
+        if critical_count > 0:
+            state = "failure"
+            description = f"❌ Found {critical_count} critical issues"
+        elif high_count > 0:
+            state = "success"
+            description = f"⚠️ Found {high_count} high priority issues"
+        else:
+            state = "success"
+            description = "✅ No critical issues found"
+        
+        github_service.create_status_check(
+            repo_full_name=project.github_repo_full_name,
+            commit_sha=run.head_sha,
+            state=state,
+            description=description
+        )
+        
+        logger.info(f"Analysis completed for run {run_id}")
+        
+    except Exception as e:
+        logger.error(f"Analysis failed for run {run_id}: {e}", exc_info=True)
+        
+        # Update run status
+        run = db.query(AnalysisRun).filter(AnalysisRun.id == run_id).first()
+        if run:
+            run.status = RunStatus.FAILED
+            run.error_message = str(e)
+            run.completed_at = datetime.utcnow()
+            db.commit()
+        
+        # Retry if possible
+        if self.request.retries < self.max_retries:
+            raise self.retry(exc=e, countdown=60)
+    
+    finally:
+        db.close()
+
+
+def deduplicate_findings(findings: list) -> list:
+    """
+    Deduplicate and merge similar findings
+    
+    Strategy:
+    - Group by file and line number
+    - If multiple findings on same line, keep highest severity
+    - Merge descriptions if different categories
+    """
+    # Group by file + line
+    grouped = defaultdict(list)
+    for finding in findings:
+        key = (finding["file_path"], finding.get("line_number", 0))
+        grouped[key].append(finding)
+    
+    deduplicated = []
+    for (file_path, line_number), group in grouped.items():
+        if len(group) == 1:
+            deduplicated.append(group[0])
+        else:
+            # Multiple findings on same line - prioritize and merge
+            # Sort by severity (critical > high > medium > low)
+            severity_order = {
+                FindingSeverity.CRITICAL: 0,
+                FindingSeverity.HIGH: 1,
+                FindingSeverity.MEDIUM: 2,
+                FindingSeverity.LOW: 3
+            }
+            group_sorted = sorted(group, key=lambda f: severity_order[f["severity"]])
+            
+            # Keep highest severity finding as base
+            merged = group_sorted[0].copy()
+            
+            # If others are different categories, mention them
+            categories = set(f["category"] for f in group)
+            if len(categories) > 1:
+                merged["description"] += f"\n\nAdditional concerns: {', '.join(c.value for c in categories if c != merged['category'])}"
+            
+            deduplicated.append(merged)
+    
+    return deduplicated
+
+
+def post_findings_to_pr(github_service: GitHubService, run: AnalysisRun, findings: list, repo_full_name: str):
+    """Post findings as comments on PR"""
+    
+    # Group findings by severity
+    critical = [f for f in findings if f["severity"] == FindingSeverity.CRITICAL]
+    high = [f for f in findings if f["severity"] == FindingSeverity.HIGH]
+    medium = [f for f in findings if f["severity"] == FindingSeverity.MEDIUM]
+    
+    # Create summary comment
+    summary = f"""## 🤖 AI Code Review Summary
+
+**Analysis Results:**
+- 🔴 Critical: {len(critical)}
+- 🟠 High: {len(high)}
+- 🟡 Medium: {len(medium)}
+- Total Issues: {len(findings)}
+
+---
+
+"""
+    
+    # Add top issues to summary
+    if critical:
+        summary += "### 🔴 Critical Issues\n\n"
+        for f in critical[:3]:  # Top 3
+            summary += f"- **{f['title']}** in `{f['file_path']}`\n"
+            summary += f"  {f['description'][:100]}...\n\n"
+    
+    if high:
+        summary += "### 🟠 High Priority Issues\n\n"
+        for f in high[:3]:  # Top 3
+            summary += f"- **{f['title']}** in `{f['file_path']}`\n"
+            summary += f"  {f['description'][:100]}...\n\n"
+    
+    summary += f"\n[View full report in dashboard](#)"
+    
+    # Post summary comment
+    github_service.post_pr_comment(repo_full_name, run.pr_number, summary)
+    
+    # Post inline comments for critical/high issues
+    for finding in critical + high[:5]:  # Limit inline comments
+        if finding.get("line_number"):
+            body = f"""**{finding['title']}** ({finding['severity'].value})
+
+{finding['description']}
+
+"""
+            if finding.get("suggestion"):
+                body += f"**Suggestion:** {finding['suggestion']}\n"
+            
+            try:
+                github_service.post_review_comment(
+                    repo_full_name=repo_full_name,
+                    pr_number=run.pr_number,
+                    commit_sha=run.head_sha,
+                    file_path=finding['file_path'],
+                    line=finding['line_number'],
+                    body=body
+                )
+            except Exception as e:
+                logger.warning(f"Failed to post inline comment: {e}")
