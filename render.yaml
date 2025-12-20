@@ -41,13 +41,13 @@ services:
           name: ai-code-review-backend
           property: url
 
+  # 3. Redis Cache
+  - type: redis
+    name: ai-code-review-redis
+    plan: free # Note: Free tier Redis is ephemeral
+
 databases:
   - name: ai-code-review-db
     databaseName: codereview
     user: codereview
     plan: free # Note: Free tier Postgres expires after 90 days on Render
-
-services:
-  - type: redis
-    name: ai-code-review-redis
-    plan: free # Note: Free tier Redis is ephemeral
