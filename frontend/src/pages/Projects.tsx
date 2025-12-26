@@ -50,19 +50,27 @@ export default function Projects() {
       </div>
 
       {(!projects || projects.length === 0) ? (
-        <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl p-12 text-center border-2 border-dashed border-slate-700/50 hover:border-slate-600 transition-colors">
-          <FolderGit2 className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+        <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl p-12 text-center border-2 border-dashed border-slate-700/50 hover:border-slate-600 transition-colors max-w-2xl mx-auto">
           <h3 className="text-xl font-semibold text-slate-300 mb-2">No projects yet</h3>
           <p className="text-slate-500 mb-6">
             Install the GitHub App to connect repositories and start analyzing pull requests
           </p>
+          <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-6 mb-6 text-left">
+            <h4 className="text-sm font-semibold text-slate-300 mb-3">📋 Setup Required:</h4>
+            <ol className="text-sm text-slate-400 space-y-2 list-decimal list-inside">
+              <li>Create a GitHub App following <span className="text-blue-400">GITHUB_APP_SETUP.md</span></li>
+              <li>Update the GitHub App URL in Projects.tsx</li>
+              <li>Install the app on your repositories</li>
+              <li>Configure webhook to start receiving PR events</li>
+            </ol>
+          </div>
           <a
-            href="https://github.com/apps/your-app-name/installations/new"
+            href="https://github.com/settings/apps/new"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white rounded-lg transition-all shadow-lg hover:shadow-blue-500/25 hover:scale-105"
           >
-            <span>Install GitHub App</span>
+            <span>Create GitHub App</span>
             <ExternalLink className="w-4 h-4" />
           </a>
         </div>
@@ -140,16 +148,19 @@ export default function Projects() {
 
       {projects && projects.length > 0 && (
         <div className="mt-8 p-4 bg-slate-800 rounded-lg border border-slate-700 text-center">
-          <p className="text-sm text-slate-400">
-            Need to add more repositories? Install the GitHub App on additional repos
+          <p className="text-sm text-slate-400 mb-2">
+            💡 To connect your real GitHub repositories:
+          </p>
+          <p className="text-xs text-slate-500 mb-3">
+            Follow the setup guide in GITHUB_APP_SETUP.md to create and install your GitHub App
           </p>
           <a
-            href="https://github.com/apps/your-app-name/installations/new"
+            href="https://github.com/settings/apps"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center space-x-2 mt-3 text-sm text-blue-400 hover:text-blue-300"
+            className="inline-flex items-center space-x-2 mt-2 text-sm text-blue-400 hover:text-blue-300"
           >
-            <span>Manage installations</span>
+            <span>Go to GitHub Apps Settings</span>
             <ExternalLink className="w-3 h-3" />
           </a>
         </div>
