@@ -3,6 +3,7 @@ from app.models import FindingSeverity, FindingCategory
 import openai
 import logging
 import json
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +14,8 @@ class LLMService:
     def __init__(self):
         self.use_openai = bool(settings.openai_api_key)
         self.use_anthropic = bool(settings.anthropic_api_key)
+        self.use_google = bool(settings.google_api_key)
+        self.provider = settings.llm_provider.lower()
         
         if self.use_openai:
             openai.api_key = settings.openai_api_key
@@ -49,7 +52,9 @@ class LLMService:
         prompt = self._build_analysis_prompt(filename, patch, rule_findings)
         
         # Call LLM
-        if self.use_openai:
+        if self.provider == "google" and self.use_google:
+            response = self._call_google(prompt)
+        elif self.use_openai:
             response = self._call_openai(prompt)
         else:
             # Fallback: return empty if no LLM configured
@@ -165,6 +170,40 @@ Your JSON response:
             except Exception as e:
                 logger.error(f"OpenAI API error: {e}")
                 raise
+    
+    def _call_google(self, prompt: str) -> str:
+        """Call Google Gemini API"""
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={settings.google_api_key}"
+            
+            payload = {
+                "contents": [{
+                    "parts": [{"text": prompt}]
+                }],
+                "generationConfig": {
+                    "temperature": 0.2,
+                    "maxOutputTokens": 2000,
+                    "responseMimeType": "application/json"
+                }
+            }
+            
+            response = requests.post(url, json=payload, timeout=30)
+            response.raise_for_status()
+            
+            data = response.json()
+            if "candidates" in data and len(data["candidates"]) > 0:
+                text = data["candidates"][0]["content"]["parts"][0]["text"]
+                return text
+            else:
+                logger.warning("No content in Gemini response")
+                return "[]"
+                
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Google Gemini API error: {e}")
+            return "[]"
+        except Exception as e:
+            logger.error(f"Error calling Google Gemini: {e}")
+            return "[]"
     
     def _parse_llm_response(self, response: str, filename: str) -> list:
         """Parse LLM response into findings with robust error handling"""

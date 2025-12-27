@@ -4,9 +4,16 @@ An intelligent, production-ready code review platform that uses machine learning
 
 ![Status](https://img.shields.io/badge/status-production--ready-brightgreen) ![Python](https://img.shields.io/badge/python-3.10%2B-blue) ![React](https://img.shields.io/badge/react-18-blue) ![License](https://img.shields.io/badge/license-MIT-green)
 
+## � One-Click Deploy
+
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/ai-code-review)
+
+Deploy in 2 minutes with Railway - no DevOps experience needed! See [Railway Deployment Guide](RAILWAY_DEPLOYMENT.md).
+
 ## 📚 Documentation
+- [**Railway Deployment**](RAILWAY_DEPLOYMENT.md) - One-click deploy to Railway (recommended).
 - [**Distribution Guide**](DISTRIBUTION_GUIDE.md) - How to publish to GitHub, Vercel, and deliver to clients.
-- [**Deployment Guide**](DEPLOYMENT.md) - Technical server configuration (AWS, DigitalOcean, Railway).
+- [**Deployment Guide**](DEPLOYMENT.md) - Technical server configuration (AWS, DigitalOcean, Render).
 - [**API Documentation**](backend/docs/api.md) - Backend API endpoints.
 
 ## ✨ Features

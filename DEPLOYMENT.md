@@ -2,11 +2,19 @@
 
 This guide covers deploying the AI Code Review Assistant to various cloud platforms.
 
+## 🚀 Quick Deploy (Recommended)
+
+**Deploy to Railway in 2 minutes** - See [RAILWAY_DEPLOYMENT.md](RAILWAY_DEPLOYMENT.md) for one-click deployment.
+
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/ai-code-review)
+
+---
+
 ## Table of Contents
 
 - [Prerequisites](#prerequisites)
 - [Environment Variables](#environment-variables)
-- [Railway Deployment](#railway-deployment)
+- [Railway Deployment](#railway-deployment) ⭐ Recommended
 - [Render Deployment](#render-deployment)
 - [DigitalOcean App Platform](#digitalocean-app-platform)
 - [Docker Deployment](#docker-deployment)
@@ -66,9 +74,22 @@ LOG_LEVEL=INFO
 
 ## Railway Deployment
 
-Railway offers the simplest deployment with automatic builds and zero-config infrastructure.
+⭐ **Recommended for fastest deployment** - See [RAILWAY_DEPLOYMENT.md](RAILWAY_DEPLOYMENT.md) for detailed guide.
 
-### Backend Deployment
+### Quick Deploy with Button
+
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/ai-code-review)
+
+This will:
+- Deploy backend (FastAPI)
+- Deploy frontend (React)
+- Create PostgreSQL database
+- Create Redis cache
+- Link all services automatically
+
+### Manual Railway Deployment
+
+If you prefer CLI deployment:
 
 1. **Install Railway CLI**
    ```bash

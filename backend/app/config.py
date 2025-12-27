@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     # LLM API
     openai_api_key: Optional[str] = None
     anthropic_api_key: Optional[str] = None
+    google_api_key: Optional[str] = None
+    llm_provider: str = "openai"  # openai, anthropic, or google
     
     # Redis
     redis_url: str = "redis://localhost:6379/0"
