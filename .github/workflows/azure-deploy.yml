@@ -1,0 +1,99 @@
+name: Deploy to Azure
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ${{ secrets.AZURE_CONTAINER_REGISTRY }}.azurecr.io
+  BACKEND_IMAGE: codereview-backend
+  FRONTEND_IMAGE: codereview-frontend
+  CELERY_IMAGE: codereview-celery
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Login to Azure Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ secrets.ACR_USERNAME }}
+        password: ${{ secrets.ACR_PASSWORD }}
+
+    - name: Build and push Backend image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./backend
+        file: ./backend/Dockerfile
+        push: true
+        tags: |
+          ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:latest
+          ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }}
+
+    - name: Build and push Frontend image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./frontend
+        file: ./frontend/Dockerfile
+        push: true
+        tags: |
+          ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:latest
+          ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
+        build-args: |
+          VITE_API_URL=${{ secrets.BACKEND_URL }}
+
+    - name: Build and push Celery image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./backend
+        file: ./backend/Dockerfile
+        push: true
+        tags: |
+          ${{ env.REGISTRY }}/${{ env.CELERY_IMAGE }}:latest
+          ${{ env.REGISTRY }}/${{ env.CELERY_IMAGE }}:${{ github.sha }}
+
+    - name: Deploy Backend to Azure Container Apps
+      uses: azure/container-apps-deploy-action@v1
+      with:
+        containerAppName: codereview-backend
+        resourceGroup: ${{ secrets.AZURE_RESOURCE_GROUP }}
+        imageToDeploy: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }}
+
+    - name: Deploy Frontend to Azure Container Apps
+      uses: azure/container-apps-deploy-action@v1
+      with:
+        containerAppName: codereview-frontend
+        resourceGroup: ${{ secrets.AZURE_RESOURCE_GROUP }}
+        imageToDeploy: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
+
+    - name: Deploy Celery to Azure Container Apps
+      uses: azure/container-apps-deploy-action@v1
+      with:
+        containerAppName: codereview-celery
+        resourceGroup: ${{ secrets.AZURE_RESOURCE_GROUP }}
+        imageToDeploy: ${{ env.REGISTRY }}/${{ env.CELERY_IMAGE }}:${{ github.sha }}
+
+    - name: Run Database Migrations
+      run: |
+        az containerapp exec \
+          --name codereview-backend \
+          --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+          --command "python init_db.py"
+
+    - name: Deployment Summary
+      run: |
+        echo "✅ Deployment completed successfully!"
+        echo "Backend: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }}"
+        echo "Frontend: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ github.sha }}"
+        echo "Celery: ${{ env.REGISTRY }}/${{ env.CELERY_IMAGE }}:${{ github.sha }}"
