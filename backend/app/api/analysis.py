@@ -2,9 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import AnalysisRun, Finding, Project, RunStatus
+from app.config import settings
 from app.tasks.analysis import analyze_pr_task
 from typing import Optional, List
 from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -36,8 +40,7 @@ async def list_analysis_runs(
             "data": runs
         }
     except Exception as e:
-        import logging
-        logging.getLogger(__name__).error(f"Error fetching analysis runs: {e}", exc_info=True)
+        logger.error(f"Error fetching analysis runs: {e}", exc_info=True)
         return {
             "success": False,
             "count": 0,

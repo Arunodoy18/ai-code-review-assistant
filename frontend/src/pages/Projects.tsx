@@ -1,14 +1,18 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { Project } from '../types'
-import { FolderGit2, ExternalLink, Activity, Clock, CheckCircle, Settings, Plus, Github } from 'lucide-react'
+import { FolderGit2, ExternalLink, Activity, Clock, Settings, Plus, Github, RefreshCcw } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
 export default function Projects() {
-  const { data: projects, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch, isRefetching } = useQuery({
     queryKey: ['projects'],
     queryFn: api.getProjects,
   })
+
+  const projects: Project[] = data?.data || (Array.isArray(data) ? data : [])
+  const fetchError = data?.success === false ? data?.error : null
+  const isNetworkError = error && !data
 
   if (isLoading) {
     return (
@@ -19,13 +23,17 @@ export default function Projects() {
     )
   }
 
-  if (error) {
+  if (isNetworkError) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
-        <div className="glass-panel p-8 text-center border-red-500/20">
-          <Activity className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-white mb-2">Sync Error</h3>
-          <p className="text-slate-400">Unable to retrieve connected projects. Please check your connection.</p>
+        <div className="glass-panel p-8 text-center border-amber-500/20 max-w-md">
+          <Activity className="w-12 h-12 text-amber-500 mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-white mb-2">Connection Issue</h3>
+          <p className="text-slate-400 mb-6">Unable to reach the server. The service may be warming up.</p>
+          <button onClick={() => refetch()} className="btn-primary w-full flex items-center justify-center space-x-2">
+            <RefreshCcw className={`w-4 h-4 ${isRefetching ? 'animate-spin' : ''}`} />
+            <span>Retry Connection</span>
+          </button>
         </div>
       </div>
     )
@@ -51,12 +59,18 @@ export default function Projects() {
         </a>
       </div>
 
-      {(!projects || projects.length === 0) ? (
+      {fetchError && (
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-amber-300 text-sm">
+          Note: {fetchError}
+        </div>
+      )}
+
+      {projects.length === 0 ? (
         <div className="card-premium p-16 text-center border-dashed border-white/10 max-w-3xl mx-auto">
           <div className="w-20 h-20 bg-indigo-500/5 rounded-full flex items-center justify-center mx-auto mb-8">
             <Github className="w-10 h-10 text-slate-500" />
           </div>
-          <h3 className="text-2xl font-bold text-white mb-4">No repositories connected</h3>
+          <h3 className="text-2xl font-bold text-white mb-4">No repositories connected yet</h3>
           <p className="text-slate-400 mb-10 leading-relaxed">
             Install the AI Code Review GitHub App on your repositories to enable automated analysis and security scanning.
           </p>

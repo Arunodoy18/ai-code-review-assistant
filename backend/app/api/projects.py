@@ -2,8 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Project
+from app.config import settings
 from pydantic import BaseModel
 from typing import Optional, Dict
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -22,9 +26,22 @@ class ProjectUpdate(BaseModel):
 
 @router.get("/")
 async def list_projects(db: Session = Depends(get_db)):
-    """List all projects"""
-    projects = db.query(Project).all()
-    return projects
+    """List all projects. Guaranteed to never throw - returns empty array if no data."""
+    try:
+        projects = db.query(Project).order_by(Project.created_at.desc()).all()
+        return {
+            "success": True,
+            "count": len(projects),
+            "data": projects
+        }
+    except Exception as e:
+        logger.error(f"Error fetching projects: {e}", exc_info=True)
+        return {
+            "success": False,
+            "count": 0,
+            "data": [],
+            "error": str(e) if settings.environment == "development" else "Internal server error"
+        }
 
 
 @router.get("/{project_id}")
