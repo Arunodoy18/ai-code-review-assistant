@@ -7,7 +7,8 @@ import * as Sentry from '@sentry/react'
 import App from './App'
 import './index.css'
 
-// Initialize Sentry
+// Initialize Sentry - use runtime config
+const apiBaseUrl = (window as any).__RUNTIME_CONFIG__?.API_URL || 'http://localhost:8000'
 const sentryDsn = import.meta.env.VITE_SENTRY_DSN
 if (sentryDsn) {
   Sentry.init({
@@ -17,7 +18,7 @@ if (sentryDsn) {
       new Sentry.BrowserTracing({
         tracePropagationTargets: [
           'localhost',
-          import.meta.env.VITE_API_URL || 'http://localhost:8000'
+          apiBaseUrl
         ],
       }),
       new Sentry.Replay(),

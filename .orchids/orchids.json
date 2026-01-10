@@ -1,0 +1,8 @@
+{
+  "projectId": "e8643c14-8979-41c1-adc1-cb2354d6a96e",
+  "createdAt": 1768053440070,
+  "startupCommands": [
+    "cd frontend && bun install && bun run dev",
+    "cd backend && pip install -r requirements.txt && python -m uvicorn app.main:app --reload --port 8000"
+  ]
+}

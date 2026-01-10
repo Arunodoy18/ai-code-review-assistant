@@ -4,8 +4,31 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI Code Review Assistant</title>
-  </head>
+    <title>AI Code Review Assistant</title>    <script>
+      // Runtime API URL injection - executes BEFORE React loads
+      window.__RUNTIME_CONFIG__ = {
+        API_URL: (function() {
+          const hostname = window.location.hostname;
+          const protocol = window.location.protocol;
+
+          // Production: replace 'frontend' with 'backend' in hostname
+          if (hostname.includes('frontend')) {
+            const backendHost = hostname.replace('frontend', 'backend');
+            const secureProtocol = protocol === 'https:' ? 'https://' : protocol + '//';
+            return secureProtocol.replace('http://', 'https://') + backendHost;
+          }
+          
+          // Localhost development
+          if (hostname === 'localhost' || hostname === '127.0.0.1') {
+            return 'http://localhost:8000';
+          }
+          
+          // Fallback: same origin with /api path
+          return protocol + '//' + hostname;
+        })()
+      };
+      console.log('[Config] API URL:', window.__RUNTIME_CONFIG__.API_URL);
+    </script>  </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>

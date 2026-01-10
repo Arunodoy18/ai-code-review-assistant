@@ -29,8 +29,9 @@ if settings.sentry_dsn:
     )
     logger.info("Sentry initialized for error tracking")
 
-# Don't create tables automatically on import - will be done manually
-# Base.metadata.create_all(bind=engine)
+# Create database tables on startup
+Base.metadata.create_all(bind=engine)
+logger.info("Database tables created/verified")
 
 app = FastAPI(
     title="AI Code Review Assistant",
@@ -38,11 +39,11 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS
+# CORS - Allow all Azure Container Apps origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_url, "http://localhost:5173"],
-    allow_credentials=True,
+    allow_origins=["*"],  # Allow all origins for now - tighten in production
+    allow_credentials=False,  # Must be False when allow_origins is "*"
     allow_methods=["*"],
     allow_headers=["*"],
 )
