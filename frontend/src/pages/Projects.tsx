@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { Project } from '../types'
-import { FolderGit2, ExternalLink, Activity, Clock, CheckCircle, Settings } from 'lucide-react'
+import { FolderGit2, ExternalLink, Activity, Clock, CheckCircle, Settings, Plus, Github } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
 export default function Projects() {
@@ -12,157 +12,132 @@ export default function Projects() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-          <div className="text-slate-400">Loading projects...</div>
-        </div>
+      <div className="flex flex-col items-center justify-center h-[60vh] animate-pulse">
+        <FolderGit2 className="w-12 h-12 text-indigo-500/50 mb-4 animate-bounce" />
+        <div className="text-slate-500 font-medium text-lg">Loading repositories...</div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-red-500">Error loading projects</div>
+      <div className="flex items-center justify-center h-[60vh]">
+        <div className="glass-panel p-8 text-center border-red-500/20">
+          <Activity className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-white mb-2">Sync Error</h3>
+          <p className="text-slate-400">Unable to retrieve connected projects. Please check your connection.</p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div>
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 mb-2 flex items-center space-x-3 drop-shadow-sm">
-              <FolderGit2 className="w-10 h-10 text-blue-400 drop-shadow-lg" />
-              <span>Projects</span>
-            </h1>
-            <p className="text-slate-400 text-lg">Manage connected GitHub repositories for code review</p>
-          </div>
-          {projects && projects.length > 0 && (
-            <div className="text-right bg-slate-800/50 backdrop-blur-sm p-4 rounded-xl border border-slate-700/50 shadow-lg">
-              <div className="text-3xl font-bold text-white">{projects.length}</div>
-              <div className="text-sm text-slate-400">Connected</div>
-            </div>
-          )}
+    <div className="space-y-10">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div>
+          <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Connected Projects</h1>
+          <p className="text-slate-400 max-w-2xl leading-relaxed">
+            Repositories with active AI monitoring. Open a pull request on any of these to trigger an analysis.
+          </p>
         </div>
+        <a
+          href="https://github.com/settings/apps/new"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn-primary flex items-center space-x-2 shadow-indigo-500/20"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Add Repository</span>
+        </a>
       </div>
 
       {(!projects || projects.length === 0) ? (
-        <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl p-12 text-center border-2 border-dashed border-slate-700/50 hover:border-slate-600 transition-colors max-w-2xl mx-auto">
-          <h3 className="text-xl font-semibold text-slate-300 mb-2">No projects yet</h3>
-          <p className="text-slate-500 mb-6">
-            Install the GitHub App to connect repositories and start analyzing pull requests
+        <div className="card-premium p-16 text-center border-dashed border-white/10 max-w-3xl mx-auto">
+          <div className="w-20 h-20 bg-indigo-500/5 rounded-full flex items-center justify-center mx-auto mb-8">
+            <Github className="w-10 h-10 text-slate-500" />
+          </div>
+          <h3 className="text-2xl font-bold text-white mb-4">No repositories connected</h3>
+          <p className="text-slate-400 mb-10 leading-relaxed">
+            Install the AI Code Review GitHub App on your repositories to enable automated analysis and security scanning.
           </p>
-          <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-6 mb-6 text-left">
-            <h4 className="text-sm font-semibold text-slate-300 mb-3">📋 Setup Required:</h4>
-            <ol className="text-sm text-slate-400 space-y-2 list-decimal list-inside">
-              <li>Create a GitHub App following <span className="text-blue-400">GITHUB_APP_SETUP.md</span></li>
-              <li>Update the GitHub App URL in Projects.tsx</li>
-              <li>Install the app on your repositories</li>
-              <li>Configure webhook to start receiving PR events</li>
-            </ol>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left mb-10">
+            <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+              <div className="text-indigo-400 font-bold mb-1">Step 1</div>
+              <div className="text-sm text-slate-300">Create GitHub App following GITHUB_APP_SETUP.md</div>
+            </div>
+            <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+              <div className="text-indigo-400 font-bold mb-1">Step 2</div>
+              <div className="text-sm text-slate-300">Install app on your target repositories</div>
+            </div>
           </div>
           <a
             href="https://github.com/settings/apps/new"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white rounded-lg transition-all shadow-lg hover:shadow-blue-500/25 hover:scale-105"
+            className="btn-primary inline-flex items-center space-x-2 px-10 py-3"
           >
-            <span>Create GitHub App</span>
+            <span>Setup GitHub Integration</span>
             <ExternalLink className="w-4 h-4" />
           </a>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {projects.map((project: Project) => (
-            <div
-              key={project.id}
-              className="bg-gradient-to-br from-slate-800 to-slate-900/80 backdrop-blur-md rounded-xl p-6 border border-slate-700/50 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:scale-105 transition-all duration-300 group"
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center space-x-3 flex-1">
-                  <div className="p-3 bg-blue-500/10 rounded-lg border border-blue-500/20 group-hover:bg-blue-500/20 transition-colors">
-                    <FolderGit2 className="w-6 h-6 text-blue-500 group-hover:scale-110 transition-transform" />
+            <div key={project.id} className="card-premium p-6 group">
+              <div className="flex items-start justify-between mb-6">
+                <div className="flex items-center space-x-4">
+                  <div className="p-3 bg-indigo-500/10 rounded-xl border border-indigo-500/20 group-hover:bg-indigo-500/20 transition-all">
+                    <Github className="w-6 h-6 text-indigo-400" />
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="text-lg font-semibold text-white truncate group-hover:text-blue-400 transition-colors">
+                  <div>
+                    <h3 className="text-lg font-bold text-white group-hover:text-indigo-300 transition-colors truncate max-w-[180px]">
                       {project.name}
                     </h3>
-                    <p className="text-sm text-slate-400 truncate">
+                    <p className="text-xs text-slate-500 font-medium truncate max-w-[180px]">
                       {project.github_repo_full_name}
                     </p>
                   </div>
                 </div>
+                <div className="px-2 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
+                  Active
+                </div>
               </div>
 
-              <div className="space-y-3 mb-4">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-500 flex items-center space-x-2">
-                    <Activity className="w-4 h-4" />
-                    <span>Status</span>
+              <div className="space-y-4 mb-8">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-500 font-medium flex items-center space-x-2">
+                    <Activity className="w-3.5 h-3.5" />
+                    <span>Review Mode</span>
                   </span>
-                  <span className="flex items-center space-x-1">
-                    <CheckCircle className="w-4 h-4 text-green-500" />
-                    <span className="text-green-400 font-medium">Active</span>
-                  </span>
+                  <span className="text-slate-300 font-semibold">Automatic</span>
                 </div>
-
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-500 flex items-center space-x-2">
-                    <Clock className="w-4 h-4" />
-                    <span>Added</span>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-500 font-medium flex items-center space-x-2">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>Connected</span>
                   </span>
-                  <span className="text-slate-300">
+                  <span className="text-slate-300 font-semibold">
                     {formatDistanceToNow(new Date(project.created_at), { addSuffix: true })}
                   </span>
                 </div>
               </div>
 
-              <div className="flex items-center space-x-2 pt-4 border-t border-slate-700">
+              <div className="flex items-center space-x-3">
                 <a
                   href={`https://github.com/${project.github_repo_full_name}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white rounded-lg text-sm transition"
+                  className="flex-1 btn-secondary py-2 flex items-center justify-center space-x-2 text-xs"
                 >
-                  <ExternalLink className="w-4 h-4" />
-                  <span>View on GitHub</span>
+                  <ExternalLink className="w-3 h-3" />
+                  <span>Repository</span>
                 </a>
-                <button
-                  className="p-2 bg-slate-700 hover:bg-slate-600 text-slate-400 hover:text-white rounded-lg transition"
-                  title="Project settings"
-                >
+                <button className="btn-secondary py-2 px-3 text-slate-400 hover:text-white" title="Project Settings">
                   <Settings className="w-4 h-4" />
                 </button>
               </div>
-
-              <div className="mt-3 text-xs text-slate-500 text-center">
-                Installation ID: {project.github_installation_id}
-              </div>
             </div>
           ))}
-        </div>
-      )}
-
-      {projects && projects.length > 0 && (
-        <div className="mt-8 p-4 bg-slate-800 rounded-lg border border-slate-700 text-center">
-          <p className="text-sm text-slate-400 mb-2">
-            💡 To connect your real GitHub repositories:
-          </p>
-          <p className="text-xs text-slate-500 mb-3">
-            Follow the setup guide in GITHUB_APP_SETUP.md to create and install your GitHub App
-          </p>
-          <a
-            href="https://github.com/settings/apps"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center space-x-2 mt-2 text-sm text-blue-400 hover:text-blue-300"
-          >
-            <span>Go to GitHub Apps Settings</span>
-            <ExternalLink className="w-3 h-3" />
-          </a>
         </div>
       )}
     </div>

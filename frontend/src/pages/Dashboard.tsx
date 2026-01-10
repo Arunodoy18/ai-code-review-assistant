@@ -3,46 +3,40 @@ import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import { AnalysisRun } from '../types'
 import { formatDistanceToNow, format } from 'date-fns'
-import { ExternalLink, AlertCircle, CheckCircle, Clock, XCircle, FileCode, AlertTriangle, ShieldAlert, Activity, Filter } from 'lucide-react'
+import { ExternalLink, AlertCircle, CheckCircle, Clock, XCircle, FileCode, AlertTriangle, Activity, Filter, RefreshCcw } from 'lucide-react'
 import { useState, useMemo } from 'react'
 
 export default function Dashboard() {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [timeFilter, setTimeFilter] = useState<string>('all')
   
-  const { data, isLoading, error, refetch } = useQuery({
+  const { data, isLoading, error, refetch, isRefetching } = useQuery({
     queryKey: ['runs'],
     queryFn: () => api.getRuns({ limit: 100 }),
-    refetchInterval: 10000, // Auto-refresh every 10s
+    refetchInterval: 10000,
   })
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'completed':
-        return <CheckCircle className="w-5 h-5 text-green-500" />
+        return <CheckCircle className="w-5 h-5 text-emerald-500" />
       case 'failed':
         return <XCircle className="w-5 h-5 text-red-500" />
       case 'running':
         return <Clock className="w-5 h-5 text-blue-500 animate-spin" />
       default:
-        return <Clock className="w-5 h-5 text-yellow-500" />
+        return <Clock className="w-5 h-5 text-amber-500" />
     }
   }
 
-
-  // Filter and compute stats
   const runs: AnalysisRun[] = data?.data || []
   const fetchError = data?.success === false ? data?.error : null
   
   const filteredRuns = useMemo(() => {
     let filtered = runs
-    
-    // Status filter
     if (statusFilter !== 'all') {
       filtered = filtered.filter(run => run.status === statusFilter)
     }
-    
-    // Time filter
     if (timeFilter === 'today') {
       const today = new Date()
       today.setHours(0, 0, 0, 0)
@@ -52,7 +46,6 @@ export default function Dashboard() {
       weekAgo.setDate(weekAgo.getDate() - 7)
       filtered = filtered.filter(run => new Date(run.started_at) >= weekAgo)
     }
-    
     return filtered
   }, [runs, statusFilter, timeFilter])
   
@@ -63,7 +56,6 @@ export default function Dashboard() {
     const failed = runs.filter(r => r.status === 'failed').length
     
     let totalFindings = 0
-    let criticalFindings = 0
     let filesAnalyzed = 0
     
     runs.forEach(run => {
@@ -79,7 +71,6 @@ export default function Dashboard() {
       running,
       failed,
       totalFindings,
-      criticalFindings,
       filesAnalyzed,
       avgFindingsPerRun: completed > 0 ? Math.round(totalFindings / completed) : 0,
     }
@@ -87,31 +78,27 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-          <div className="text-slate-400">Loading analysis runs...</div>
-        </div>
+      <div className="flex flex-col items-center justify-center h-[60vh] animate-pulse">
+        <Activity className="w-12 h-12 text-indigo-500/50 mb-4 animate-bounce" />
+        <div className="text-slate-500 font-medium">Initializing Dashboard...</div>
       </div>
     )
   }
 
   if (error || fetchError) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-6 max-w-md">
-          <div className="flex items-center space-x-3 mb-3">
-            <AlertCircle className="w-6 h-6 text-red-500" />
-            <h3 className="text-lg font-semibold text-red-400">Error loading runs</h3>
+      <div className="flex items-center justify-center h-[60vh]">
+        <div className="glass-panel p-8 max-w-md text-center border-red-500/20">
+          <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+            <AlertCircle className="w-8 h-8 text-red-500" />
           </div>
-          <p className="text-red-300 text-sm mb-4">
-            {fetchError || 'Failed to fetch analysis data from the server.'}
+          <h3 className="text-xl font-bold text-white mb-2">Service Temporarily Unavailable</h3>
+          <p className="text-slate-400 mb-8 leading-relaxed">
+            {fetchError || 'Unable to load analysis runs. No data yet or service warming up.'}
           </p>
-          <button
-            onClick={() => refetch()}
-            className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm transition"
-          >
-            Try Again
+          <button onClick={() => refetch()} className="btn-primary w-full flex items-center justify-center space-x-2">
+            <RefreshCcw className={`w-4 h-4 ${isRefetching ? 'animate-spin' : ''}`} />
+            <span>Reconnect to Service</span>
           </button>
         </div>
       </div>
@@ -119,223 +106,195 @@ export default function Dashboard() {
   }
 
   return (
-    <div>
+    <div className="space-y-10">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 mb-2 flex items-center space-x-3 drop-shadow-sm">
-              <Activity className="w-10 h-10 text-blue-400 drop-shadow-lg" />
-              <span>Analysis Dashboard</span>
-            </h1>
-            <p className="text-slate-400 text-lg">AI-powered code review insights</p>
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div>
+          <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">
+            Analysis Dashboard
+          </h1>
+          <p className="text-slate-400 max-w-2xl leading-relaxed">
+            Monitor AI-powered code reviews and security insights across your repositories in real-time.
+          </p>
+        </div>
+        <div className="flex items-center space-x-3">
+          <div className="h-10 px-4 bg-white/5 border border-white/5 rounded-lg flex items-center space-x-2 text-sm">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-slate-300 font-medium">Live System</span>
           </div>
-          {runs.length > 0 && (
-            <div className="text-right bg-slate-800/50 backdrop-blur-sm p-4 rounded-xl border border-slate-700/50 shadow-lg">
-              <div className="text-3xl font-bold text-white">{stats.total}</div>
-              <div className="text-sm text-slate-400">Total Analyses</div>
-            </div>
-          )}
         </div>
       </div>
 
       {/* Stats Cards */}
       {runs.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-gradient-to-br from-green-500/20 to-green-900/20 backdrop-blur-md rounded-xl p-6 border border-green-500/30 shadow-lg hover:shadow-green-500/20 hover:scale-105 transition-all duration-300 group">
-            <div className="flex items-center justify-between mb-2">
-              <CheckCircle className="w-10 h-10 text-green-500 drop-shadow-md group-hover:scale-110 transition-transform" />
-              <span className="text-4xl font-bold text-white drop-shadow-sm">{stats.completed}</span>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="card-premium p-6">
+            <div className="flex items-start justify-between mb-4">
+              <div className="p-2 bg-emerald-500/10 rounded-lg">
+                <CheckCircle className="w-6 h-6 text-emerald-500" />
+              </div>
+              <span className="text-2xl font-bold text-white">{stats.completed}</span>
             </div>
-            <div className="text-green-400 font-bold text-lg">Completed</div>
-            <div className="text-xs text-slate-400 mt-1 font-medium">Successfully analyzed</div>
+            <div className="text-slate-400 text-sm font-medium">Completed Runs</div>
           </div>
 
-          <div className="bg-gradient-to-br from-blue-500/20 to-blue-900/20 backdrop-blur-md rounded-xl p-6 border border-blue-500/30 shadow-lg hover:shadow-blue-500/20 hover:scale-105 transition-all duration-300 group">
-            <div className="flex items-center justify-between mb-2">
-              <Clock className="w-10 h-10 text-blue-500 animate-pulse drop-shadow-md" />
-              <span className="text-4xl font-bold text-white drop-shadow-sm">{stats.running}</span>
+          <div className="card-premium p-6">
+            <div className="flex items-start justify-between mb-4">
+              <div className="p-2 bg-blue-500/10 rounded-lg">
+                <Clock className="w-6 h-6 text-blue-500 animate-pulse" />
+              </div>
+              <span className="text-2xl font-bold text-white">{stats.running}</span>
             </div>
-            <div className="text-blue-400 font-bold text-lg">Running</div>
-            <div className="text-xs text-slate-400 mt-1 font-medium">Currently analyzing</div>
+            <div className="text-slate-400 text-sm font-medium">Active Analysis</div>
           </div>
 
-          <div className="bg-gradient-to-br from-orange-500/20 to-orange-900/20 backdrop-blur-md rounded-xl p-6 border border-orange-500/30 shadow-lg hover:shadow-orange-500/20 hover:scale-105 transition-all duration-300 group">
-            <div className="flex items-center justify-between mb-2">
-              <AlertTriangle className="w-10 h-10 text-orange-500 drop-shadow-md group-hover:rotate-12 transition-transform" />
-              <span className="text-4xl font-bold text-white drop-shadow-sm">{stats.totalFindings}</span>
+          <div className="card-premium p-6">
+            <div className="flex items-start justify-between mb-4">
+              <div className="p-2 bg-amber-500/10 rounded-lg">
+                <AlertTriangle className="w-6 h-6 text-amber-500" />
+              </div>
+              <span className="text-2xl font-bold text-white">{stats.totalFindings}</span>
             </div>
-            <div className="text-orange-400 font-bold text-lg">Total Findings</div>
-            <div className="text-xs text-slate-400 mt-1 font-medium">{stats.avgFindingsPerRun} avg per run</div>
+            <div className="text-slate-400 text-sm font-medium">Critical Findings</div>
           </div>
 
-          <div className="bg-gradient-to-br from-purple-500/20 to-purple-900/20 backdrop-blur-md rounded-xl p-6 border border-purple-500/30 shadow-lg hover:shadow-purple-500/20 hover:scale-105 transition-all duration-300 group">
-            <div className="flex items-center justify-between mb-2">
-              <FileCode className="w-10 h-10 text-purple-500 drop-shadow-md group-hover:scale-110 transition-transform" />
-              <span className="text-4xl font-bold text-white drop-shadow-sm">{stats.filesAnalyzed}</span>
+          <div className="card-premium p-6">
+            <div className="flex items-start justify-between mb-4">
+              <div className="p-2 bg-indigo-500/10 rounded-lg">
+                <FileCode className="w-6 h-6 text-indigo-500" />
+              </div>
+              <span className="text-2xl font-bold text-white">{stats.filesAnalyzed}</span>
             </div>
-            <div className="text-purple-400 font-bold text-lg">Files Analyzed</div>
-            <div className="text-xs text-slate-400 mt-1 font-medium">Across all runs</div>
-          </div>
-        </div>
-      )}
-
-      {/* Filters */}
-      {runs.length > 0 && (
-        <div className="bg-slate-800/50 backdrop-blur-md rounded-xl p-4 mb-6 border border-slate-700/50 shadow-md">
-          <div className="flex items-center space-x-6">
-            <div className="flex items-center space-x-2">
-              <Filter className="w-4 h-4 text-blue-400" />
-              <span className="text-sm text-slate-300 font-semibold">Filters:</span>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <span className="text-xs text-slate-400 font-medium">Status:</span>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="bg-slate-900/50 text-slate-300 text-sm rounded-lg px-3 py-1.5 border border-slate-600/50 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
-              >
-                <option value="all">All</option>
-                <option value="completed">Completed</option>
-                <option value="running">Running</option>
-                <option value="failed">Failed</option>
-              </select>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <span className="text-xs text-slate-400 font-medium">Time:</span>
-              <select
-                value={timeFilter}
-                onChange={(e) => setTimeFilter(e.target.value)}
-                className="bg-slate-900/50 text-slate-300 text-sm rounded-lg px-3 py-1.5 border border-slate-600/50 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
-              >
-                <option value="all">All Time</option>
-                <option value="today">Today</option>
-                <option value="week">Last 7 Days</option>
-              </select>
-            </div>
-
-            <div className="ml-auto text-sm text-slate-400 font-medium bg-slate-900/30 px-3 py-1 rounded-full border border-slate-700/30">
-              Showing {filteredRuns.length} of {runs.length} runs
-            </div>
+            <div className="text-slate-400 text-sm font-medium">Files Scanned</div>
           </div>
         </div>
       )}
 
-      {/* Runs List */}
-      {runs.length === 0 ? (
-        <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl p-12 text-center border-2 border-dashed border-slate-700/50 hover:border-slate-600 transition-colors">
-          <Activity className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-slate-300 mb-2">No analyses yet</h3>
-          <p className="text-slate-500 mb-6">
-            Start by connecting a repository and opening a pull request
-          </p>
-          <Link
-            to="/projects"
-            className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white rounded-lg transition-all shadow-lg hover:shadow-blue-500/25 hover:scale-105"
-          >
-            <span>View Projects</span>
-            <ExternalLink className="w-4 h-4" />
-          </Link>
-        </div>
-      ) : filteredRuns.length === 0 ? (
-        <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl p-8 text-center border border-slate-700/50">
-          <AlertCircle className="w-12 h-12 text-slate-500 mx-auto mb-4" />
-          <p className="text-slate-400">No runs match the current filters</p>
-          <button
-            onClick={() => {
-              setStatusFilter('all')
-              setTimeFilter('all')
-            }}
-            className="mt-4 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm transition shadow-md"
-          >
-            Clear Filters
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {filteredRuns.map((run) => {
-            const findings = run.run_metadata?.findings_count || 0
-            const files = run.run_metadata?.files_analyzed || 0
+      {/* Main Content Area */}
+      <div className="space-y-6">
+        {/* Filters Bar */}
+        {runs.length > 0 && (
+          <div className="flex flex-wrap items-center gap-4 bg-white/5 p-2 rounded-xl border border-white/5">
+            <div className="flex items-center px-3 py-1.5 space-x-2 text-slate-400">
+              <Filter className="w-4 h-4" />
+              <span className="text-xs font-bold uppercase tracking-wider">Refine View</span>
+            </div>
             
-            return (
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="bg-[#0b1220] text-slate-300 text-sm rounded-lg px-3 py-1.5 border border-white/10 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all cursor-pointer"
+            >
+              <option value="all">All Statuses</option>
+              <option value="completed">Completed</option>
+              <option value="running">Running</option>
+              <option value="failed">Failed</option>
+            </select>
+
+            <select
+              value={timeFilter}
+              onChange={(e) => setTimeFilter(e.target.value)}
+              className="bg-[#0b1220] text-slate-300 text-sm rounded-lg px-3 py-1.5 border border-white/10 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all cursor-pointer"
+            >
+              <option value="all">All Time</option>
+              <option value="today">Past 24 Hours</option>
+              <option value="week">Past 7 Days</option>
+            </select>
+
+            <div className="ml-auto px-4 py-1.5 text-xs font-medium text-slate-500 bg-[#0b1220]/50 rounded-lg border border-white/5">
+              Showing {filteredRuns.length} of {runs.length} Records
+            </div>
+          </div>
+        )}
+
+        {/* Runs Grid/List */}
+        {runs.length === 0 ? (
+          <div className="card-premium p-16 text-center border-dashed border-white/10">
+            <div className="w-20 h-20 bg-indigo-500/5 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Activity className="w-10 h-10 text-slate-600" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2">Ready to Start Analyzing?</h3>
+            <p className="text-slate-400 mb-8 max-w-sm mx-auto leading-relaxed">
+              Connect your first repository to begin receiving AI-powered code reviews on every pull request.
+            </p>
+            <Link to="/projects" className="btn-primary inline-flex items-center space-x-2 px-8">
+              <span>Connect Repository</span>
+              <ExternalLink className="w-4 h-4" />
+            </Link>
+          </div>
+        ) : filteredRuns.length === 0 ? (
+          <div className="card-premium p-12 text-center border-dashed border-white/10">
+            <p className="text-slate-400 mb-4">No results match your current filter criteria.</p>
+            <button
+              onClick={() => { setStatusFilter('all'); setTimeFilter('all'); }}
+              className="btn-secondary text-xs"
+            >
+              Reset All Filters
+            </button>
+          </div>
+        ) : (
+          <div className="grid gap-4">
+            {filteredRuns.map((run) => (
               <Link
                 key={run.id}
                 to={`/runs/${run.id}`}
-                className="block bg-gradient-to-r from-slate-800 to-slate-800/50 backdrop-blur-sm rounded-xl p-5 hover:bg-slate-750 transition-all border border-slate-700/50 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/5 hover:scale-[1.01] group"
+                className="card-premium p-5 group flex items-center justify-between"
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-3">
-                      <div className="transform group-hover:scale-110 transition-transform duration-300">
-                        {getStatusIcon(run.status)}
-                      </div>
-                      <h3 className="text-lg font-semibold text-white group-hover:text-blue-400 transition-colors">
-                        {run.pr_title || `PR #${run.pr_number}`}
-                      </h3>
-                      <span className="text-slate-500 text-sm bg-slate-900/50 px-2 py-0.5 rounded border border-slate-700/50">#{run.pr_number}</span>
-                    </div>
-
-                    <div className="flex items-center space-x-4 text-sm text-slate-400 mb-3">
-                      <span className="flex items-center space-x-1">
-                        <span className="font-medium text-slate-300">{run.pr_author}</span>
-                      </span>
-                      <span>•</span>
-                      <span>{formatDistanceToNow(new Date(run.started_at), { addSuffix: true })}</span>
-                      <span>•</span>
-                      <span className="text-xs text-slate-500">
-                        {format(new Date(run.started_at), 'MMM d, yyyy HH:mm')}
-                      </span>
-                    </div>
-
-                    {run.status === 'completed' && findings > 0 && (
-                      <div className="flex items-center space-x-3 flex-wrap gap-2">
-                        <div className="flex items-center space-x-2 text-sm bg-orange-500/10 px-2 py-1 rounded-md border border-orange-500/20">
-                          <ShieldAlert className="w-4 h-4 text-orange-500" />
-                          <span className="text-slate-300 font-semibold">{findings}</span>
-                          <span className="text-slate-500">findings</span>
-                        </div>
-                        <div className="flex items-center space-x-2 text-sm bg-blue-500/10 px-2 py-1 rounded-md border border-blue-500/20">
-                          <FileCode className="w-4 h-4 text-blue-500" />
-                          <span className="text-slate-300">{files}</span>
-                          <span className="text-slate-500">files</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {run.status === 'failed' && run.error_message && (
-                      <div className="mt-2 text-xs text-red-400 bg-red-500/10 rounded px-3 py-2 border border-red-500/30">
-                        Error: {run.error_message.substring(0, 100)}...
-                      </div>
-                    )}
+                <div className="flex items-center space-x-5">
+                  <div className="p-2 bg-slate-900 rounded-lg group-hover:bg-slate-800 transition-colors">
+                    {getStatusIcon(run.status)}
                   </div>
+                  <div>
+                    <div className="flex items-center space-x-3 mb-1">
+                      <h3 className="font-bold text-slate-100 group-hover:text-indigo-400 transition-colors">
+                        {run.pr_title || `Analysis #${run.pr_number}`}
+                      </h3>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 bg-white/5 px-2 py-0.5 rounded">
+                        PR-{run.pr_number}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-4 text-xs text-slate-500">
+                      <span className="font-medium text-slate-400">{run.pr_author}</span>
+                      <span className="w-1 h-1 rounded-full bg-slate-700" />
+                      <span>{formatDistanceToNow(new Date(run.started_at), { addSuffix: true })}</span>
+                    </div>
+                  </div>
+                </div>
 
-                  <div className="flex items-center space-x-2">
-                    {run.pr_url && (
-                      <a
-                        href={run.pr_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-2 text-slate-400 hover:text-blue-400 hover:bg-slate-700/50 rounded-lg transition-all hover:scale-110"
-                        onClick={(e) => e.stopPropagation()}
-                        title="View on GitHub"
-                      >
-                        <ExternalLink className="w-5 h-5" />
-                      </a>
-                    )}
+                <div className="flex items-center space-x-8">
+                  {run.status === 'completed' && (
+                    <div className="hidden sm:flex items-center space-x-6">
+                      <div className="text-center">
+                        <div className="text-sm font-bold text-slate-200">{run.run_metadata?.findings_count || 0}</div>
+                        <div className="text-[10px] uppercase text-slate-500 font-bold">Issues</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-sm font-bold text-slate-200">{run.run_metadata?.files_analyzed || 0}</div>
+                        <div className="text-[10px] uppercase text-slate-500 font-bold">Files</div>
+                      </div>
+                    </div>
+                  )}
+                  <div className="p-2 text-slate-600 group-hover:text-white transition-all transform group-hover:translate-x-1">
+                    <ExternalLink className="w-4 h-4" />
                   </div>
                 </div>
               </Link>
-            )
-          })}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
 
-      {/* Footer info */}
+      {/* System Status Footer */}
       {runs.length > 0 && (
-        <div className="mt-8 text-center text-sm text-slate-500">
-          Auto-refreshing every 10 seconds • Last updated: {format(new Date(), 'HH:mm:ss')}
+        <div className="flex items-center justify-center space-x-4 pt-6 border-t border-white/5">
+          <div className="flex items-center space-x-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            <span>All Systems Operational</span>
+          </div>
+          <span className="text-slate-700">•</span>
+          <div className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
+            Last Refresh: {format(new Date(), 'HH:mm:ss')}
+          </div>
         </div>
       )}
     </div>
