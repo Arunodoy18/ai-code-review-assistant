@@ -39,14 +39,40 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS - Allow all Azure Container Apps origins
+# CORS - Production-ready configuration
+origins = [
+    "http://localhost:5173",
+    "http://localhost:8000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:8000",
+    "https://codereview-frontend.jollysea-c5c0b121.centralus.azurecontainerapps.io",
+]
+
+# Allow frontend URL from settings if provided
+if settings.frontend_url and settings.frontend_url not in origins:
+    origins.append(settings.frontend_url)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for now - tighten in production
-    allow_credentials=False,  # Must be False when allow_origins is "*"
+    allow_origins=origins,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Database validation on startup
+@app.on_event("startup")
+async def startup_event():
+    logger.info("Starting up application...")
+    try:
+        # Validate database connectivity
+        from sqlalchemy import text
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+        logger.info("Database connectivity validated successfully")
+    except Exception as e:
+        logger.error(f"FATAL: Database connectivity check failed: {e}")
+        # In production, we might want to exit here, but for now just log
 
 # Response caching
 app.add_middleware(ResponseCacheMiddleware)

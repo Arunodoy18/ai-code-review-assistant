@@ -1,7 +1,19 @@
-// Read API URL from window object (injected by index.html before bundle loads)
-// Build timestamp: 2026-01-09T19:30:00Z
+// Read API URL from environment or window object
 const getBaseUrl = () => {
-  return (window as any).__RUNTIME_CONFIG__?.API_URL || 'http://localhost:8000';
+  // 1. Check window.__RUNTIME_CONFIG__ (Azure Container Apps injection)
+  if ((window as any).__RUNTIME_CONFIG__?.API_URL) {
+    return (window as any).__RUNTIME_CONFIG__.API_URL;
+  }
+  // 2. Check import.meta.env.VITE_API_URL (Vite build-time env)
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  // 3. Fallback to production URL provided in request
+  if (window.location.hostname.includes('azurecontainerapps.io')) {
+    return 'https://codereview-backend.jollysea-c5c0b121.centralus.azurecontainerapps.io';
+  }
+  // 4. Default to localhost
+  return 'http://localhost:8000';
 };
 
 // Generic API client for flexible usage

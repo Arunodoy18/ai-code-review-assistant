@@ -31,7 +31,8 @@ export default function Dashboard() {
 
 
   // Filter and compute stats
-  const runs: AnalysisRun[] = data?.runs || []
+  const runs: AnalysisRun[] = data?.data || []
+  const fetchError = data?.success === false ? data?.error : null
   
   const filteredRuns = useMemo(() => {
     let filtered = runs
@@ -95,7 +96,7 @@ export default function Dashboard() {
     )
   }
 
-  if (error) {
+  if (error || fetchError) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-6 max-w-md">
@@ -103,7 +104,9 @@ export default function Dashboard() {
             <AlertCircle className="w-6 h-6 text-red-500" />
             <h3 className="text-lg font-semibold text-red-400">Error loading runs</h3>
           </div>
-          <p className="text-red-300 text-sm mb-4">Failed to fetch analysis data from the server.</p>
+          <p className="text-red-300 text-sm mb-4">
+            {fetchError || 'Failed to fetch analysis data from the server.'}
+          </p>
           <button
             onClick={() => refetch()}
             className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm transition"

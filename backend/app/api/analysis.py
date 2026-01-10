@@ -17,22 +17,33 @@ async def list_analysis_runs(
     offset: int = Query(0),
     db: Session = Depends(get_db)
 ):
-    """List analysis runs with optional filters"""
-    query = db.query(AnalysisRun)
-    
-    if project_id:
-        query = query.filter(AnalysisRun.project_id == project_id)
-    if pr_number:
-        query = query.filter(AnalysisRun.pr_number == pr_number)
-    
-    query = query.order_by(AnalysisRun.started_at.desc())
-    total = query.count()
-    runs = query.offset(offset).limit(limit).all()
-    
-    return {
-        "total": total,
-        "runs": runs
-    }
+    """List analysis runs with optional filters. Guaranteed to never throw."""
+    try:
+        query = db.query(AnalysisRun)
+        
+        if project_id:
+            query = query.filter(AnalysisRun.project_id == project_id)
+        if pr_number:
+            query = query.filter(AnalysisRun.pr_number == pr_number)
+        
+        query = query.order_by(AnalysisRun.started_at.desc())
+        total = query.count()
+        runs = query.offset(offset).limit(limit).all()
+        
+        return {
+            "success": True,
+            "count": total,
+            "data": runs
+        }
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Error fetching analysis runs: {e}", exc_info=True)
+        return {
+            "success": False,
+            "count": 0,
+            "data": [],
+            "error": str(e) if settings.environment == "development" else "Internal server error"
+        }
 
 
 @router.get("/runs/{run_id}")
