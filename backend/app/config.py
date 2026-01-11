@@ -62,8 +62,8 @@ class Settings(BaseSettings):
                 errors.append("JWT_SECRET_KEY must be set in production")
             if self.github_webhook_secret == "test_secret":
                 errors.append("GITHUB_WEBHOOK_SECRET must be set in production")
-            if not self.sentry_dsn:
-                logger.warning("SENTRY_DSN not set - error tracking disabled in production")
+            if not self.openai_api_key:
+                errors.append("OPENAI_API_KEY is required in production")
             if "localhost" in self.database_url:
                 errors.append("DATABASE_URL cannot point to localhost in production")
             if "localhost" in self.redis_url:

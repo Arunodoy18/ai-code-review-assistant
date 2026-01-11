@@ -133,6 +133,19 @@ echo -e "${GREEN}✓ Container Apps environment created${NC}"
 
 # Build and push images to ACR
 echo -e "\n${YELLOW}Building and pushing Docker images...${NC}"
+
+# Get backend URL first to pass to frontend build
+BACKEND_URL=$(az containerapp show \
+  --name codereview-backend \
+  --resource-group $RESOURCE_GROUP \
+  --query properties.configuration.ingress.fqdn -o tsv 2>/dev/null || echo "")
+
+if [ -z "$BACKEND_URL" ]; then
+    echo -e "${YELLOW}Backend not yet deployed. Frontend will use initial deployment URL logic.${NC}"
+    # Use a predicted URL based on naming convention if possible, 
+    # but az containerapp show is safer.
+fi
+
 az acr build \
   --registry $ACR_NAME \
   --image codereview-backend:latest \
@@ -142,6 +155,7 @@ az acr build \
 az acr build \
   --registry $ACR_NAME \
   --image codereview-frontend:latest \
+  --build-arg VITE_API_URL="https://${BACKEND_URL}" \
   --file ./frontend/Dockerfile \
   ./frontend
 
@@ -186,9 +200,9 @@ az containerapp create \
   --image ${ACR_LOGIN_SERVER}/codereview-frontend:latest \
   --registry-server $ACR_LOGIN_SERVER \
   --registry-username $ACR_USERNAME \
-  --registry-password $ACR_PASSWORD \
-  --target-port 5173 \
-  --ingress external \
+  --registry-password $ACR_PASSWORD `
+  --target-port 80 `
+  --ingress external `
   --min-replicas 1 \
   --max-replicas 3 \
   --cpu 0.25 \

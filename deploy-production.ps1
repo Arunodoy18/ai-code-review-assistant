@@ -95,6 +95,16 @@ if (-not $BackendOnly) {
     Write-Info "FRONTEND DEPLOYMENT"
     Write-Info "═══════════════════════════════════════"
     
+    # Get Backend URL if not provided
+    $backendUrl = (az containerapp show --name $BackendApp --resource-group $ResourceGroup --query "properties.configuration.ingress.fqdn" -o tsv)
+    if (-not $backendUrl) {
+        Write-Warning "Could not retrieve backend URL. Frontend build might use fallback."
+        $backendUrl = ""
+    } else {
+        $backendUrl = "https://$backendUrl"
+        Write-Info "Using Backend URL: $backendUrl"
+    }
+
     $frontendImage = "$registryUrl/codereview-frontend:$Version"
     
     if (-not $SkipBuild) {
@@ -106,6 +116,7 @@ if (-not $BackendOnly) {
             
             docker build `
                 --build-arg BUILD_TIME=$buildTime `
+                --build-arg VITE_API_URL=$backendUrl `
                 --target prod `
                 -t $frontendImage `
                 -f Dockerfile `
@@ -133,6 +144,7 @@ if (-not $BackendOnly) {
                 --registry $RegistryName `
                 --image "codereview-frontend:$Version" `
                 --build-arg BUILD_TIME=$buildTime `
+                --build-arg VITE_API_URL=$backendUrl `
                 --target prod `
                 --file Dockerfile `
                 . 2>&1 | ForEach-Object { Write-Host $_ }
@@ -154,6 +166,7 @@ if (-not $BackendOnly) {
         --name $FrontendApp `
         --resource-group $ResourceGroup `
         --image $frontendImage `
+        --target-port 80 `
         --output table
     
     if ($LASTEXITCODE -ne 0) {
