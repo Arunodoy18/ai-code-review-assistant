@@ -1,15 +1,16 @@
-import config from '../config/runtime';
+/**
+ * API client for local development.
+ * Simple fetch wrapper with no retry logic or production-specific behavior.
+ * Backend failures will fail gracefully without blocking the UI.
+ */
 
-const getBaseUrl = (): string => config.API_URL;
-
-const isProduction = (): boolean => config.IS_PRODUCTION;
-
-const log = (level: 'debug' | 'info' | 'warn' | 'error', ...args: any[]) => {
-  // Only log debug in development or when explicitly enabled
-  if (level === 'debug' && isProduction() && sessionStorage.getItem('debug') !== 'true') {
-    return;
+const getBaseUrl = (): string => {
+  // Allow override via Vite env variable if needed
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
   }
-  console[level]('[API]', ...args);
+  // Default: localhost for local development
+  return 'http://localhost:8000';
 };
 
 interface ApiError extends Error {
@@ -30,88 +31,50 @@ class NetworkError extends Error implements ApiError {
   }
 }
 
-const fetchWithRetry = async (
+const fetchWithErrorHandling = async (
   url: string,
-  options: RequestInit = {},
-  retries: number = 2
+  options: RequestInit = {}
 ): Promise<Response> => {
-  const isProductionEnv = isProduction();
-  
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      log('debug', `${options.method || 'GET'} ${url} (attempt ${attempt + 1}/${retries + 1})`);
-      
-      const response = await fetch(url, {
-        ...options,
-        credentials: isProductionEnv ? 'omit' : 'include',  // Match backend CORS config
-        headers: {
-          'Content-Type': 'application/json',
-          ...options.headers,
-        },
-      });
-      
-      // Success - return response
-      if (response.ok) {
-        log('debug', `✓ ${options.method || 'GET'} ${url} - ${response.status}`);
-        return response;
-      }
-      
-      // Client error (4xx) - don't retry
-      if (response.status >= 400 && response.status < 500) {
-        log('warn', `Client error ${response.status} for ${url}`);
-        throw new NetworkError(
-          `API Error: ${response.statusText}`,
-          response.status,
-          response.statusText
-        );
-      }
-      
-      // Server error (5xx) - retry
-      if (attempt < retries) {
-        const backoff = Math.min(1000 * Math.pow(2, attempt), 5000);
-        log('warn', `Server error ${response.status}, retrying in ${backoff}ms...`);
-        await new Promise(resolve => setTimeout(resolve, backoff));
-        continue;
-      }
-      
+  try {
+    const response = await fetch(url, {
+      ...options,
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    });
+    
+    if (!response.ok) {
       throw new NetworkError(
         `API Error: ${response.statusText}`,
         response.status,
         response.statusText
       );
-      
-    } catch (error) {
-      // Network error (no response)
-      if (error instanceof TypeError) {
-        if (attempt < retries) {
-          const backoff = Math.min(1000 * Math.pow(2, attempt), 5000);
-          log('warn', `Network error, retrying in ${backoff}ms...`, error);
-          await new Promise(resolve => setTimeout(resolve, backoff));
-          continue;
-        }
-        log('error', 'Network request failed after retries:', error);
-        throw new NetworkError(
-          'Unable to reach the server. Please check your connection and try again.'
-        );
-      }
-      // Re-throw other errors (like NetworkError from above)
-      throw error;
     }
+    
+    return response;
+  } catch (error) {
+    if (error instanceof TypeError) {
+      // Network error - backend not running or unreachable
+      throw new NetworkError(
+        'Backend server is not reachable. Make sure it is running on http://localhost:8000'
+      );
+    }
+    throw error;
   }
-  
-  throw new NetworkError('Request failed after all retries');
 };
 
 export const apiClient = {
   get: async (endpoint: string) => {
     const url = `${getBaseUrl()}${endpoint}`;
-    const response = await fetchWithRetry(url, { method: 'GET' });
+    const response = await fetchWithErrorHandling(url, { method: 'GET' });
     return { data: await response.json() };
   },
   
   post: async (endpoint: string, body?: any) => {
     const url = `${getBaseUrl()}${endpoint}`;
-    const response = await fetchWithRetry(url, {
+    const response = await fetchWithErrorHandling(url, {
       method: 'POST',
       body: JSON.stringify(body),
     });
@@ -120,7 +83,7 @@ export const apiClient = {
   
   put: async (endpoint: string, body?: any) => {
     const url = `${getBaseUrl()}${endpoint}`;
-    const response = await fetchWithRetry(url, {
+    const response = await fetchWithErrorHandling(url, {
       method: 'PUT',
       body: JSON.stringify(body),
     });
@@ -130,31 +93,31 @@ export const apiClient = {
 
 export const api = {
   health: async () => {
-    const response = await fetchWithRetry(`${getBaseUrl()}/health`, { method: 'GET' });
+    const response = await fetchWithErrorHandling(`${getBaseUrl()}/health`, { method: 'GET' });
     return response.json();
   },
 
   ready: async () => {
-    const response = await fetchWithRetry(`${getBaseUrl()}/health/ready`, { method: 'GET' });
+    const response = await fetchWithErrorHandling(`${getBaseUrl()}/health/ready`, { method: 'GET' });
     return response.json();
   },
 
   getProjects: async () => {
     const url = `${getBaseUrl()}/api/projects`;
-    const response = await fetchWithRetry(url, { method: 'GET' });
+    const response = await fetchWithErrorHandling(url, { method: 'GET' });
     const data = await response.json();
     return data;
   },
 
   getProject: async (id: number) => {
     const url = `${getBaseUrl()}/api/projects/${id}`;
-    const response = await fetchWithRetry(url, { method: 'GET' });
+    const response = await fetchWithErrorHandling(url, { method: 'GET' });
     return response.json();
   },
 
   updateProject: async (id: number, data: any) => {
     const url = `${getBaseUrl()}/api/projects/${id}`;
-    const response = await fetchWithRetry(url, {
+    const response = await fetchWithErrorHandling(url, {
       method: 'PATCH',
       body: JSON.stringify(data),
     });
@@ -169,13 +132,13 @@ export const api = {
     if (params?.offset) queryParams.append('offset', params.offset.toString());
 
     const url = `${getBaseUrl()}/api/analysis/runs?${queryParams}`;
-    const response = await fetchWithRetry(url, { method: 'GET' });
+    const response = await fetchWithErrorHandling(url, { method: 'GET' });
     return response.json();
   },
 
   getRun: async (id: number) => {
     const url = `${getBaseUrl()}/api/analysis/runs/${id}`;
-    const response = await fetchWithRetry(url, { method: 'GET' });
+    const response = await fetchWithErrorHandling(url, { method: 'GET' });
     return response.json();
   },
 
@@ -185,19 +148,19 @@ export const api = {
     if (params?.category) queryParams.append('category', params.category);
 
     const url = `${getBaseUrl()}/api/analysis/runs/${runId}/findings?${queryParams}`;
-    const response = await fetchWithRetry(url, { method: 'GET' });
+    const response = await fetchWithErrorHandling(url, { method: 'GET' });
     return response.json();
   },
 
   rerunAnalysis: async (runId: number) => {
     const url = `${getBaseUrl()}/api/analysis/runs/${runId}/rerun`;
-    const response = await fetchWithRetry(url, { method: 'POST' });
+    const response = await fetchWithErrorHandling(url, { method: 'POST' });
     return response.json();
   },
 
   resolveFinding: async (findingId: number) => {
     const url = `${getBaseUrl()}/api/analysis/findings/${findingId}/resolve`;
-    const response = await fetchWithRetry(url, { method: 'PATCH' });
+    const response = await fetchWithErrorHandling(url, { method: 'PATCH' });
     return response.json();
   },
 };

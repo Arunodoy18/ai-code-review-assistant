@@ -2,6 +2,9 @@
 
 An intelligent code review system powered by AI that automatically analyzes pull requests and provides detailed feedback.
 
+> **Note:** This project is currently configured for local development only.  
+> For deployment guides and production setup, see the `/docs/` folder.
+
 ## Features
 
 - 🤖 AI-powered code analysis
@@ -26,91 +29,63 @@ An intelligent code review system powered by AI that automatically analyzes pull
 - **State Management**: Zustand + React Query
 - **Build Tool**: Vite
 
-## Prerequisites
+## Quick Start (Local Development)
 
-- Docker & Docker Compose
-- GitHub App credentials (for production)
-- OpenAI API key
+### Prerequisites
+- Node.js 18+ and npm
+- Python 3.9+
+- PostgreSQL (optional - for backend)
+- Redis (optional - for backend)
 
-## Quick Start
+### Frontend Only
 
-### 1. Clone the repository
+The simplest way to see the UI:
 
 ```bash
-git clone <your-repo-url>
-cd <your-repo-name>
+cd frontend
+npm install
+npm run dev
 ```
 
-### 2. Set up environment variables
+The frontend will be available at **http://localhost:5173**
 
-Create a `.env` file in the root directory:
+> The backend is optional. If not running, API calls will fail gracefully without blocking the UI.
 
-```env
-# Database
-DATABASE_URL=postgresql://codereview:codereview_pass@postgres:5432/codereview_db
+## Project Structure
 
-# GitHub App
-GITHUB_APP_ID=your_app_id
-GITHUB_APP_PRIVATE_KEY_PATH=./keys/github-app-private-key.pem
-GITHUB_WEBHOOK_SECRET=your_webhook_secret
-
-# OpenAI
-OPENAI_API_KEY=your_openai_api_key
-
-# Redis
-REDIS_URL=redis://redis:6379/0
-
-# JWT
-JWT_SECRET_KEY=your_secure_jwt_secret
-
-# Environment
-ENVIRONMENT=development
-API_PORT=8000
-FRONTEND_URL=http://localhost:5173
+```
+├── backend/              # FastAPI backend (optional for UI demo)
+│   ├── app/
+│   │   ├── api/         # API endpoints
+│   │   ├── services/    # Business logic
+│   │   └── ...
+│   └── requirements.txt
+│
+├── frontend/            # React frontend
+│   ├── src/
+│   │   ├── api/        # API client
+│   │   ├── components/ # React components
+│   │   ├── pages/      # Page components
+│   │   └── ...
+│   └── package.json
+│
+├── docs/               # Deployment guides and documentation
+└── docker-compose.yml  # For full-stack local development
 ```
 
-### 3. Run with Docker Compose
+## Full-Stack Development (Optional)
+
+If you want to run both frontend and backend locally:
+
+### Option 1: Docker Compose
 
 ```bash
 docker-compose up --build
 ```
 
-The application will be available at:
-- **Frontend**: http://localhost:5173
-- **Backend API**: http://localhost:8000
-- **API Documentation**: http://localhost:8000/docs
+### Option 2: Manual Setup
 
-## Project Structure
-
-```
-├── backend/
-│   ├── app/
-│   │   ├── api/          # API endpoints
-│   │   ├── middleware/   # Custom middleware
-│   │   ├── schemas/      # Pydantic models
-│   │   ├── services/     # Business logic
-│   │   ├── tasks/        # Celery tasks
-│   │   └── utils/        # Utility functions
-│   ├── Dockerfile
-│   └── requirements.txt
-│
-├── frontend/
-│   ├── src/
-│   │   ├── api/          # API client
-│   │   ├── components/   # React components
-│   │   ├── contexts/     # React contexts
-│   │   ├── pages/        # Page components
-│   │   └── types/        # TypeScript types
-│   ├── Dockerfile
-│   └── package.json
-│
-└── docker-compose.yml
-```
-
-## Development
-
-### Backend Development
-
+**Backend:**
 ```bash
 cd backend
 python -m venv venv
@@ -119,8 +94,7 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-### Frontend Development
-
+**Frontend:**
 ```bash
 cd frontend
 npm install
@@ -129,12 +103,10 @@ npm run dev
 
 ## Deployment
 
-The application is designed to be deployed on Azure using:
-- Azure Container Apps (for frontend and backend)
-- Azure Database for PostgreSQL
-- Azure Cache for Redis
-
-Deployment configuration will be added in the next phase.
+For deployment instructions (Azure, Docker, CI/CD), see the `/docs/` folder:
+- `PRODUCTION_DEPLOYMENT_GUIDE.md` - Complete production setup
+- `DEPLOYMENT_GUIDE.md` - General deployment info
+- Deployment scripts and configurations
 
 ## License
 

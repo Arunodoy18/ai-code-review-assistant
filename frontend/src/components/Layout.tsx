@@ -70,7 +70,7 @@ export default function Layout({ children }: LayoutProps) {
       <footer className="border-t border-white/5 py-10 mt-10">
         <div className="container mx-auto px-6 text-center">
           <p className="text-slate-500 text-sm">
-            &copy; 2026 AI Code Review Assistant. Production Grade Analysis.
+            &copy; 2026 AI Code Review Assistant
           </p>
         </div>
       </footer>

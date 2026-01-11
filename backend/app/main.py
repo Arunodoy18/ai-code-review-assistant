@@ -55,14 +55,9 @@ def get_cors_origins() -> list[str]:
         if settings.frontend_url.startswith("http://"):
             origins.append(settings.frontend_url.replace("http://", "https://"))
     
-    # Add common Azure patterns and specific live URL
-    origins.extend([
-        "https://codereview-frontend.jollysea-c5c0b121.centralus.azurecontainerapps.io",
-        "https://codereview-frontend.azurecontainerapps.io"
-    ])
-    
-    # Filter unique and non-empty
-    origins = list(set([o for o in origins if o]))
+    # Add Azure Container Apps URL if detected
+    if "azurecontainerapps.io" in settings.frontend_url:
+        origins.append("https://codereview-frontend.jollysea-c5c0b121.centralus.azurecontainerapps.io")
     
     logger.info(f"CORS enabled for origins: {origins}")
     return origins
@@ -70,7 +65,7 @@ def get_cors_origins() -> list[str]:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_cors_origins(),
-    allow_credentials=True,  # Enable credentials for secure cookie/auth support
+    allow_credentials=not settings.is_production,  # Disable credentials in prod for security
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],

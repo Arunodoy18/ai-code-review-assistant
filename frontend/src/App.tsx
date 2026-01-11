@@ -7,14 +7,9 @@ import Configuration from './pages/Configuration'
 
 function App() {
   return (
-    <Layout>
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/runs/:runId" element={<RunDetail />} />
-        <Route path="/projects" element={<Projects />} />
-        <Route path="/configuration" element={<Configuration />} />
-      </Routes>
-    </Layout>
+    <div>
+      <h1 style={{ color: 'white', fontSize: '48px', padding: '50px' }}>HELLO WORLD - REACT WORKS</h1>
+    </div>
   )
 }
 

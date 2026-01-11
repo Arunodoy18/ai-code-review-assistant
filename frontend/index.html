@@ -4,43 +4,8 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI Code Review Assistant</title>    <script>
-      // Runtime API URL injection - executes BEFORE React loads
-      (function() {
-        const hostname = window.location.hostname;
-        const protocol = window.location.protocol;
-        const isDevelopment = hostname === 'localhost' || hostname === '127.0.0.1';
-        const isProduction = hostname.includes('azurecontainerapps.io') || hostname.includes('.azure.');
-        
-        let apiUrl;
-        
-        // Production: Always use HTTPS for Azure deployments
-        if (hostname.includes('frontend')) {
-          const backendHost = hostname.replace('frontend', 'backend');
-          apiUrl = 'https://' + backendHost;  // Hardcode HTTPS for production
-        }
-        // Localhost development
-        else if (isDevelopment) {
-          apiUrl = 'http://localhost:8000';
-        }
-        // Fallback: use same protocol and hostname
-        else {
-          apiUrl = protocol + '//' + hostname;
-        }
-        
-        window.__RUNTIME_CONFIG__ = {
-          API_URL: apiUrl,
-          ENVIRONMENT: isProduction ? 'production' : (isDevelopment ? 'development' : 'unknown'),
-          BUILD_TIME: '{{BUILD_TIME}}',  // Replaced during Docker build
-        };
-        
-        // Production-safe logging
-        if (!isProduction || sessionStorage.getItem('debug') === 'true') {
-          console.log('[Config] Environment:', window.__RUNTIME_CONFIG__.ENVIRONMENT);
-          console.log('[Config] API URL:', window.__RUNTIME_CONFIG__.API_URL);
-        }
-      })();
-    </script>  </head>
+    <title>AI Code Review Assistant</title>
+  </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>

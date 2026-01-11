@@ -7,6 +7,9 @@ import { ExternalLink, AlertCircle, CheckCircle, Clock, XCircle, FileCode, Alert
 import { useState, useMemo } from 'react'
 
 export default function Dashboard() {
+  // TEST: Confirm component renders
+  console.log('[Dashboard] Component rendering')
+  
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [timeFilter, setTimeFilter] = useState<string>('all')
   
@@ -15,6 +18,9 @@ export default function Dashboard() {
     queryFn: () => api.getRuns({ limit: 100 }),
     refetchInterval: 10000,
   })
+
+  console.log('[Dashboard] State:', { isLoading, hasError: !!error, hasData: !!data })
+
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -77,15 +83,20 @@ export default function Dashboard() {
   }, [runs])
 
   if (isLoading) {
+    console.log('[Dashboard] Rendering loading state')
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] animate-pulse">
         <Activity className="w-12 h-12 text-indigo-500/50 mb-4 animate-bounce" />
         <div className="text-slate-500 font-medium">Initializing Dashboard...</div>
+        <div style={{ marginTop: '20px', padding: '10px', background: 'yellow', color: 'black' }}>
+          TEST: Loading state is rendering
+        </div>
       </div>
     )
   }
 
   if (error || fetchError) {
+    console.log('[Dashboard] Rendering error state', error, fetchError)
     return (
       <div className="flex items-center justify-center h-[60vh]">
         <div className="glass-panel p-8 max-w-md text-center border-red-500/20">
@@ -96,6 +107,9 @@ export default function Dashboard() {
           <p className="text-slate-400 mb-8 leading-relaxed">
             {fetchError || 'Unable to load analysis runs. No data yet or service warming up.'}
           </p>
+          <div style={{ marginTop: '20px', padding: '10px', background: 'red', color: 'white' }}>
+            TEST: Error state is rendering. Error: {error?.toString() || fetchError || 'Unknown'}
+          </div>
           <button onClick={() => refetch()} className="btn-primary w-full flex items-center justify-center space-x-2">
             <RefreshCcw className={`w-4 h-4 ${isRefetching ? 'animate-spin' : ''}`} />
             <span>Reconnect to Service</span>
@@ -105,8 +119,13 @@ export default function Dashboard() {
     )
   }
 
+  console.log('[Dashboard] Rendering success state with data:', runs.length, 'runs')
+
   return (
     <div className="space-y-10">
+      <div style={{ padding: '20px', background: 'green', color: 'white', fontSize: '18px', marginBottom: '20px' }}>
+        TEST: Success state rendering. Found {runs.length} runs
+      </div>
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
