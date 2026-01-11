@@ -5,14 +5,13 @@ from app.config import settings
 from app.database import engine, Base
 from app.api import webhooks, analysis, projects, health, config
 from app.middleware.cache import ResponseCacheMiddleware
-import logging
+from app.logging_config import setup_logging
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Initialize logging first
+logger = setup_logging()
 
 # Initialize Sentry
 if settings.sentry_dsn:
@@ -40,24 +39,36 @@ app = FastAPI(
 )
 
 # CORS - Production-ready configuration
-origins = [
-    "http://localhost:5173",
-    "http://localhost:8000",
-    "http://127.0.0.1:5173",
-    "http://127.0.0.1:8000",
-    "https://codereview-frontend.jollysea-c5c0b121.centralus.azurecontainerapps.io",
-]
-
-# Allow frontend URL from settings if provided
-if settings.frontend_url and settings.frontend_url not in origins:
-    origins.append(settings.frontend_url)
+def get_cors_origins() -> list[str]:
+    """Get CORS origins based on environment."""
+    origins = [
+        "http://localhost:5173",
+        "http://localhost:8000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:8000",
+    ]
+    
+    # Add production frontend URL (HTTPS)
+    if settings.frontend_url:
+        origins.append(settings.frontend_url)
+        # Also add HTTPS version if HTTP provided
+        if settings.frontend_url.startswith("http://"):
+            origins.append(settings.frontend_url.replace("http://", "https://"))
+    
+    # Add Azure Container Apps URL if detected
+    if "azurecontainerapps.io" in settings.frontend_url:
+        origins.append("https://codereview-frontend.jollysea-c5c0b121.centralus.azurecontainerapps.io")
+    
+    logger.info(f"CORS enabled for origins: {origins}")
+    return origins
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
+    allow_origins=get_cors_origins(),
+    allow_credentials=not settings.is_production,  # Disable credentials in prod for security
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Database validation on startup

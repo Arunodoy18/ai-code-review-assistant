@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useParams, Link } from 'react-router-dom'
 import { api } from '../api/client'
 import { Finding } from '../types'
-import { ArrowLeft, AlertTriangle, ShieldAlert, Zap, Code, CheckCircle, Clock, XCircle, FileCode, Sparkles, Filter, RefreshCw, ExternalLink, ChevronRight } from 'lucide-react'
+import { AlertTriangle, ShieldAlert, Zap, Code, CheckCircle, Clock, XCircle, FileCode, Sparkles, Filter, RefreshCw, ExternalLink, ChevronRight, GitPullRequest } from 'lucide-react'
 import { formatDistanceToNow, format } from 'date-fns'
 import { useState, useMemo } from 'react'
 
@@ -32,19 +32,6 @@ export default function RunDetail() {
         return <Clock className="w-5 h-5 text-blue-500 animate-spin" />
       default:
         return <Clock className="w-5 h-5 text-amber-500" />
-    }
-  }
-
-  const getSeverityIcon = (severity: string) => {
-    switch (severity) {
-      case 'critical':
-        return <ShieldAlert className="w-5 h-5 text-red-500" />
-      case 'high':
-        return <AlertTriangle className="w-5 h-5 text-amber-500" />
-      case 'medium':
-        return <Zap className="w-5 h-5 text-indigo-400" />
-      default:
-        return <Code className="w-5 h-5 text-slate-400" />
     }
   }
 
