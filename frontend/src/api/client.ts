@@ -1,25 +1,8 @@
-const PRODUCTION_BACKEND_URL = 'https://codereview-backend.jollysea-c5c0b121.centralus.azurecontainerapps.io';
+import config from '../config/runtime';
 
-const getBaseUrl = (): string => {
-  // Priority 1: Runtime config (from index.html)
-  if ((window as any).__RUNTIME_CONFIG__?.API_URL) {
-    return (window as any).__RUNTIME_CONFIG__.API_URL;
-  }
-  // Priority 2: Vite env variable
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
-  }
-  // Priority 3: Detect Azure deployment
-  if (window.location.hostname.includes('azurecontainerapps.io')) {
-    return PRODUCTION_BACKEND_URL;
-  }
-  // Fallback: localhost for development
-  return 'http://localhost:8000';
-};
+const getBaseUrl = (): string => config.API_URL;
 
-const isProduction = (): boolean => {
-  return (window as any).__RUNTIME_CONFIG__?.ENVIRONMENT === 'production';
-};
+const isProduction = (): boolean => config.IS_PRODUCTION;
 
 const log = (level: 'debug' | 'info' | 'warn' | 'error', ...args: any[]) => {
   // Only log debug in development or when explicitly enabled

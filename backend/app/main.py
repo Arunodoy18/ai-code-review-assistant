@@ -70,7 +70,7 @@ def get_cors_origins() -> list[str]:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_cors_origins(),
-    allow_credentials=not settings.is_production,  # Disable credentials in prod for security
+    allow_credentials=True,  # Enable credentials for secure cookie/auth support
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
