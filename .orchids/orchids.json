@@ -4,5 +4,7 @@
   "startupCommands": [
     "cd frontend; bun install; bun run dev",
     "cd backend; pip install -r requirements.txt; python -m uvicorn app.main:app --reload --port 8000"
-  ]
+  ],
+  "vercelProjectId": "prj_i2LpFCL5z8dF4g70rfYlV6z1jxsm",
+  "deployedWithUserToken": false
 }
