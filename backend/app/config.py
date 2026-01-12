@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     
     # Environment
     environment: str = Field(default=os.getenv("ENVIRONMENT", "development"))
-    api_port: int = Field(default=int(os.getenv("PORT", "8000")))
+    port: int = Field(default=int(os.getenv("PORT", "8000")))
     frontend_url: str = Field(default=os.getenv("FRONTEND_URL", "http://localhost:5173"))
     
     # Error Tracking
