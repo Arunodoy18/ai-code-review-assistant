@@ -2,8 +2,12 @@ import hmac
 import hashlib
 import jwt
 import time
+from pathlib import Path
+
 from github import Github, GithubIntegration
+
 from app.config import settings
+
 import logging
 
 logger = logging.getLogger(__name__)
@@ -48,10 +52,18 @@ class GitHubService:
     def __init__(self, installation_id: int):
         self.installation_id = installation_id
         self._github_client = None
+        if not settings.enable_github_integration:
+            raise RuntimeError("GitHub integration is disabled in this environment")
+        private_key_path = settings.resolve_github_private_key_path()
+        if not private_key_path:
+            raise RuntimeError("GitHub App private key is not configured")
+        if not Path(private_key_path).exists():
+            raise RuntimeError(f"GitHub App private key not found at {private_key_path}")
+        self._private_key_path = private_key_path
     
     def _get_installation_token(self) -> str:
         """Generate installation access token"""
-        with open(settings.github_app_private_key_path, 'r') as key_file:
+        with open(self._private_key_path, 'r', encoding='utf-8') as key_file:
             private_key = key_file.read()
         
         # Create JWT

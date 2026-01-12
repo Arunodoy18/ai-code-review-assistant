@@ -18,9 +18,9 @@ An intelligent code review system powered by AI that automatically analyzes pull
 
 ### Backend
 - **Framework**: FastAPI
-- **Database**: PostgreSQL
-- **Caching**: Redis
-- **Task Queue**: Celery
+- **Database**: SQLite (local) / PostgreSQL (production)
+- **Caching**: Redis (optional)
+- **Task Queue**: Celery (optional)
 - **AI**: OpenAI API
 
 ### Frontend
@@ -32,14 +32,35 @@ An intelligent code review system powered by AI that automatically analyzes pull
 ## Quick Start (Local Development)
 
 ### Prerequisites
-- Node.js 18+ and npm
-- Python 3.9+
-- PostgreSQL (optional - for backend)
-- Redis (optional - for backend)
+- Node.js 18+
+- npm
+- Python 3.10+
 
-### Frontend Only
+SQLite is bundled with Python and used by default. PostgreSQL, Redis, Celery, and GitHub App credentials are optional for local runs and can be added later without code changes.
 
-The simplest way to see the UI:
+### 1. Backend (FastAPI)
+
+```bash
+cd backend
+python -m venv .venv
+.venv\Scripts\activate        # Windows
+pip install -r requirements.txt
+python init_db.py              # Creates local_dev.db SQLite file
+uvicorn app.main:app --reload
+```
+
+The API listens on **http://localhost:8000** with zero external dependencies. Configuration lives in `backend/.env` and ships with sensible defaults:
+
+```
+DATABASE_URL=sqlite:///./local_dev.db
+ENABLE_GITHUB_INTEGRATION=false
+ENABLE_GITHUB_WEBHOOKS=false
+ENABLE_BACKGROUND_TASKS=false
+```
+
+Enable GitHub or Redis features only when credentials and services are available by flipping the corresponding flags.
+
+### 2. Frontend (Vite + React)
 
 ```bash
 cd frontend
@@ -47,9 +68,7 @@ npm install
 npm run dev
 ```
 
-The frontend will be available at **http://localhost:5173**
-
-> The backend is optional. If not running, API calls will fail gracefully without blocking the UI.
+The dashboard is served on **http://localhost:5173** and points to the local API. If the backend is offline, the UI shows friendly empty states rather than crashing.
 
 ## Project Structure
 
@@ -73,33 +92,25 @@ The frontend will be available at **http://localhost:5173**
 └── docker-compose.yml  # For full-stack local development
 ```
 
-## Full-Stack Development (Optional)
+## Full-Stack Development
 
-If you want to run both frontend and backend locally:
-
-### Option 1: Docker Compose
+Running both services manually (as shown above) is the preferred local setup. A Docker workflow remains available for teams that want container parity:
 
 ```bash
 docker-compose up --build
 ```
 
-### Option 2: Manual Setup
+The compose file mounts the same local SQLite database and respects the `.env` flags, so you can toggle integrations without editing the containers.
 
-**Backend:**
-```bash
-cd backend
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-```
+## Preparing for Production (Firebase + Cloud Run)
 
-**Frontend:**
-```bash
-cd frontend
-npm install
-npm run dev
-```
+- Build container images using the provided Dockerfiles for both backend and frontend.
+- Store secrets in Google Secret Manager (OpenAI key, GitHub webhook secret, GitHub App private key). Inject the private key either as a mounted file or via the `GITHUB_APP_PRIVATE_KEY_B64` environment variable.
+- Provision managed PostgreSQL (Cloud SQL) and Redis (MemoryStore) instances and set `DATABASE_URL` and `REDIS_URL` accordingly.
+- Deploy the FastAPI image to Cloud Run with `ENABLE_GITHUB_INTEGRATION=true`, `ENABLE_GITHUB_WEBHOOKS=true`, and `ENABLE_BACKGROUND_TASKS=true`. Deploy a second Cloud Run service (or job) from the same image using the command `celery -A app.tasks.celery_app worker --loglevel=info`.
+- Serve the compiled frontend via Firebase Hosting and configure rewrites so `/api/*` routes proxy to the Cloud Run backend.
+
+See [docs/FIREBASE_DEPLOYMENT_GUIDE.md](docs/FIREBASE_DEPLOYMENT_GUIDE.md) for detailed steps.
 
 ## Deployment
 

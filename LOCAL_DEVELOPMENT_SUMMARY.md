@@ -65,9 +65,9 @@ npm run dev
 ```
 
 - App runs at `http://localhost:5173`
-- Zero environment variables required
+- Zero environment variables required for the frontend
 - No deployment complexity
-- Backend is optional (API calls fail gracefully if not running)
+- Backend uses the same local defaults and can be started with `uvicorn app.main:app --reload`
 
 ### ✅ No Functional Regressions
 - UI looks identical

@@ -4,6 +4,7 @@ from app.database import get_db
 from app.models import Project, AnalysisRun, RunStatus
 from app.services.github_service import verify_github_signature, parse_pr_event
 from app.tasks.analysis import analyze_pr_task
+from app.config import settings
 import logging
 import hmac
 import hashlib
@@ -22,6 +23,10 @@ async def github_webhook(
     """
     Receive GitHub webhook events for pull requests
     """
+    if not settings.enable_github_webhooks or not settings.enable_github_integration:
+        logger.info("GitHub webhook received but integration is disabled in local configuration")
+        raise HTTPException(status_code=503, detail="GitHub webhooks are disabled for this environment")
+
     try:
         body = await request.body()
         
@@ -82,7 +87,10 @@ async def github_webhook(
         db.refresh(analysis_run)
         
         # Queue analysis task
-        analyze_pr_task.delay(analysis_run.id)
+        if settings.enable_background_tasks:
+            analyze_pr_task.delay(analysis_run.id)
+        else:
+            logger.info("Background task queue disabled; analysis will not run automatically")
         
         logger.info(f"Queued analysis for PR #{pr_data['pr_number']} in {repo_full_name}")
         

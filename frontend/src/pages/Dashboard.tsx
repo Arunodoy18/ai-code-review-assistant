@@ -7,9 +7,6 @@ import { ExternalLink, AlertCircle, CheckCircle, Clock, XCircle, FileCode, Alert
 import { useState, useMemo } from 'react'
 
 export default function Dashboard() {
-  // TEST: Confirm component renders
-  console.log('[Dashboard] Component rendering')
-  
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [timeFilter, setTimeFilter] = useState<string>('all')
   
@@ -18,9 +15,6 @@ export default function Dashboard() {
     queryFn: () => api.getRuns({ limit: 100 }),
     refetchInterval: 10000,
   })
-
-  console.log('[Dashboard] State:', { isLoading, hasError: !!error, hasData: !!data })
-
 
   const getStatusIcon = (status: string) => {
     switch (status) {

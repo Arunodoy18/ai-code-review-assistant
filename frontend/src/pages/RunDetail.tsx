@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useParams, Link } from 'react-router-dom'
 import { api } from '../api/client'
 import { Finding } from '../types'
-import { AlertTriangle, ShieldAlert, Zap, Code, CheckCircle, Clock, XCircle, FileCode, Sparkles, Filter, RefreshCw, ExternalLink, ChevronRight, GitPullRequest } from 'lucide-react'
+import { AlertTriangle, Zap, CheckCircle, Clock, XCircle, FileCode, Sparkles, Filter, RefreshCw, ExternalLink, ChevronRight, GitPullRequest } from 'lucide-react'
 import { formatDistanceToNow, format } from 'date-fns'
 import { useState, useMemo } from 'react'
 
@@ -12,12 +12,12 @@ export default function RunDetail() {
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [showAIOnly, setShowAIOnly] = useState(false)
 
-  const { data: run, isLoading: runLoading } = useQuery({
+  const { data: run, isLoading: runLoading, error: runError } = useQuery({
     queryKey: ['run', runId],
     queryFn: () => api.getRun(Number(runId)),
   })
 
-  const { data: findingsData, isLoading: findingsLoading, refetch, isRefetching } = useQuery({
+  const { data: findingsData, isLoading: findingsLoading, error: findingsError, refetch, isRefetching } = useQuery({
     queryKey: ['findings', runId],
     queryFn: () => api.getRunFindings(Number(runId)),
   })
@@ -49,6 +49,7 @@ export default function RunDetail() {
   }
 
   const findings: Finding[] = findingsData?.findings || []
+  const hasError = runError || findingsError
 
   const filteredFindings = useMemo(() => {
     return findings.filter(finding => {
@@ -79,6 +80,31 @@ export default function RunDetail() {
       <div className="flex flex-col items-center justify-center h-[60vh] animate-pulse">
         <Sparkles className="w-12 h-12 text-indigo-500/50 mb-4 animate-bounce" />
         <div className="text-slate-500 font-medium text-lg">Processing Analysis...</div>
+      </div>
+    )
+  }
+
+  if (hasError) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <div className="glass-panel p-8 max-w-md text-center border-red-500/20">
+          <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+            <AlertTriangle className="w-8 h-8 text-red-500" />
+          </div>
+          <h3 className="text-xl font-bold text-white mb-2">Analysis Not Found</h3>
+          <p className="text-slate-400 mb-8 leading-relaxed">
+            The requested analysis run could not be loaded. It may have been deleted or the service is temporarily unavailable.
+          </p>
+          <div className="space-y-3">
+            <button onClick={() => refetch()} className="btn-primary w-full flex items-center justify-center space-x-2">
+              <RefreshCw className={`w-4 h-4 ${isRefetching ? 'animate-spin' : ''}`} />
+              <span>Retry Loading</span>
+            </button>
+            <Link to="/" className="btn-secondary w-full block text-center">
+              Back to Dashboard
+            </Link>
+          </div>
+        </div>
       </div>
     )
   }

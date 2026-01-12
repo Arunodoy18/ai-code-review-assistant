@@ -104,6 +104,9 @@ async def rerun_analysis(run_id: int, db: Session = Depends(get_db)):
             detail=f"Cannot rerun analysis with status: {run.status}. Only failed or completed runs can be rerun."
         )
     
+    if not settings.enable_background_tasks:
+        raise HTTPException(status_code=503, detail="Background tasks are disabled in this environment")
+
     # Delete existing findings
     db.query(Finding).filter(Finding.run_id == run_id).delete()
     
@@ -114,7 +117,7 @@ async def rerun_analysis(run_id: int, db: Session = Depends(get_db)):
     run.error_message = None
     run.run_metadata = {}
     db.commit()
-    
+
     # Trigger celery task for analysis
     try:
         analyze_pr_task.delay(run_id)
