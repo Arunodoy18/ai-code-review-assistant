@@ -52,6 +52,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ email, password }),
       });
 
+      // If endpoint doesn't exist (404), fall back to demo mode
+      if (response.status === 404) {
+        console.warn('Auth endpoint not available, using demo mode');
+        const demoUser: User = {
+          id: Date.now().toString(),
+          email,
+          name: email.split('@')[0],
+        };
+        setUser(demoUser);
+        localStorage.setItem('auth_user', JSON.stringify(demoUser));
+        localStorage.setItem('auth_token', 'demo_session');
+        return { success: true };
+      }
+
       if (!response.ok) {
         const error = await response.json().catch(() => ({ detail: 'Login failed' }));
         return { success: false, error: error.detail || 'Invalid credentials' };
@@ -70,9 +84,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       return { success: true };
     } catch (error) {
+      console.warn('Auth request failed, using demo mode:', error);
       // For demo purposes, allow local login when backend auth is not available
       const demoUser: User = {
-        id: '1',
+        id: Date.now().toString(),
         email,
         name: email.split('@')[0],
       };
@@ -90,6 +105,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, password }),
       });
+
+      // If endpoint doesn't exist (404) or server error, fall back to demo mode
+      if (response.status === 404) {
+        console.warn('Auth endpoint not available, using demo mode');
+        const demoUser: User = {
+          id: Date.now().toString(),
+          email,
+          name,
+        };
+        setUser(demoUser);
+        localStorage.setItem('auth_user', JSON.stringify(demoUser));
+        localStorage.setItem('auth_token', 'demo_session');
+        return { success: true };
+      }
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({ detail: 'Signup failed' }));
@@ -109,9 +138,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       return { success: true };
     } catch (error) {
+      console.warn('Auth request failed, using demo mode:', error);
       // For demo purposes, allow local signup when backend auth is not available
       const demoUser: User = {
-        id: '1',
+        id: Date.now().toString(),
         email,
         name,
       };
