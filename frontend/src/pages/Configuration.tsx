@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api as apiClient } from '../api/client';
-import { Settings, ShieldAlert, Sliders, Search, Filter, CheckCircle2, AlertCircle } from 'lucide-react';
+import { ShieldAlert, Sliders, Search, Filter, CheckCircle2, AlertCircle } from 'lucide-react';
 
 interface Rule {
   rule_id: string;
@@ -45,13 +45,15 @@ export default function Configuration() {
   const projects: Project[] = (projectsResponse as any)?.data || (Array.isArray(projectsResponse) ? projectsResponse : []);
 
   // Fetch all available rules
-  const { data: rulesResponse } = useQuery({
+  const { data: rulesResponse, isLoading: rulesLoading, error: rulesError } = useQuery({
     queryKey: ['rules'],
     queryFn: async () => {
-      const response = await fetch('http://localhost:8000/api/config/rules');
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${baseUrl}/api/config/rules`);
       if (!response.ok) throw new Error('Failed to fetch rules');
       return response.json();
-    }
+    },
+    retry: 1
   });
   const rules: Rule[] = Array.isArray(rulesResponse) ? rulesResponse : [];
 
@@ -101,97 +103,89 @@ export default function Configuration() {
   const getSeverityColor = (severity: string) => {
     switch (severity) {
       case 'critical': return 'text-red-400 bg-red-500/10 border-red-500/20';
-      case 'high': return 'text-amber-400 bg-amber-500/10 border-amber-500/20';
-      case 'medium': return 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20';
-      default: return 'text-slate-400 bg-white/5 border-white/5';
+      case 'high': return 'text-orange-400 bg-orange-500/10 border-orange-500/20';
+      case 'medium': return 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20';
+      default: return 'text-neutral-400 bg-neutral-800 border-neutral-700';
     }
   };
 
   return (
-    <div className="space-y-10 animate-fade-in">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+    <div className="space-y-8">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">System Configuration</h1>
-          <p className="text-slate-400 max-w-2xl leading-relaxed">
-            Fine-tune analysis parameters and security rules to match your organization's coding standards.
+          <h1 className="text-2xl font-semibold text-neutral-100 mb-1">Settings</h1>
+          <p className="text-neutral-500 text-sm">
+            Configure analysis rules and parameters for your repositories.
           </p>
-        </div>
-        <div className="flex items-center space-x-2 text-xs font-bold uppercase tracking-widest text-slate-500 bg-white/5 px-4 py-2 rounded-lg border border-white/5">
-          <Settings className="w-4 h-4" />
-          <span>Global Settings</span>
         </div>
       </div>
 
       {/* Project Selector */}
-      <div className="card-premium p-8">
-        <div className="flex items-center space-x-3 mb-6">
-          <div className="p-2 bg-indigo-500/10 rounded-lg">
-            <Sliders className="w-5 h-5 text-indigo-400" />
-          </div>
-          <h2 className="text-xl font-bold text-white">Project Context</h2>
+      <div className="card-premium p-6">
+        <div className="flex items-center space-x-2 mb-4">
+          <Sliders className="w-5 h-5 text-neutral-400" />
+          <h2 className="text-base font-medium text-neutral-100">Select Repository</h2>
         </div>
         
-        <div className="relative group">
+        <div className="relative">
           <select
             value={selectedProjectId || ''}
             onChange={(e) => setSelectedProjectId(Number(e.target.value) || null)}
-            className="w-full h-12 pl-4 pr-10 bg-[#0b1220] border border-white/10 rounded-xl text-slate-200 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all appearance-none cursor-pointer"
+            className="w-full h-10 pl-3 pr-10 bg-neutral-950 border border-neutral-800 rounded-md text-neutral-200 text-sm focus:border-neutral-700 focus:outline-none transition-colors appearance-none cursor-pointer"
           >
-            <option value="">Select a repository to configure...</option>
+            <option value="">Choose a repository...</option>
             {projects.map(project => (
               <option key={project.id} value={project.id}>
                 {project.github_repo_full_name}
               </option>
             ))}
           </select>
-          <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-500">
+          <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-neutral-500">
             <Filter className="w-4 h-4" />
           </div>
         </div>
       </div>
 
       {selectedProjectId ? (
-        <div className="space-y-8">
+        <div className="space-y-6">
           {/* Analysis Settings */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="card-premium p-8">
-              <h3 className="text-lg font-bold text-white mb-6 flex items-center space-x-2">
-                <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="card-premium p-5">
+              <h3 className="text-sm font-medium text-neutral-100 mb-4 flex items-center space-x-2">
+                <CheckCircle2 className="w-4 h-4 text-green-500" />
                 <span>Thresholds</span>
               </h3>
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">
-                    Maximum findings per rule
-                  </label>
-                  <input
-                    type="number"
-                    value={config?.analysis_config.max_findings_per_rule || 10}
-                    onChange={(e) => updateConfigMutation.mutate({ 
-                      analysis_config: { ...config!.analysis_config, max_findings_per_rule: Number(e.target.value) } 
-                    })}
-                    className="w-full h-11 px-4 bg-[#0b1220] border border-white/10 rounded-xl text-white focus:border-indigo-500 focus:outline-none transition-all"
-                  />
-                </div>
+              <div>
+                <label className="block text-xs text-neutral-500 mb-2">
+                  Max findings per rule
+                </label>
+                <input
+                  type="number"
+                  value={config?.analysis_config.max_findings_per_rule || 10}
+                  onChange={(e) => updateConfigMutation.mutate({ 
+                    analysis_config: { ...config!.analysis_config, max_findings_per_rule: Number(e.target.value) } 
+                  })}
+                  className="w-full h-9 px-3 bg-neutral-950 border border-neutral-800 rounded-md text-neutral-100 text-sm focus:border-neutral-700 focus:outline-none transition-colors"
+                />
               </div>
             </div>
 
-            <div className="card-premium p-8">
-              <h3 className="text-lg font-bold text-white mb-6 flex items-center space-x-2">
-                <AlertCircle className="w-5 h-5 text-indigo-400" />
+            <div className="card-premium p-5">
+              <h3 className="text-sm font-medium text-neutral-100 mb-4 flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4 text-neutral-400" />
                 <span>Scope</span>
               </h3>
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">
-                  Target File Extensions
+                <label className="block text-xs text-neutral-500 mb-2">
+                  File extensions
                 </label>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   {(config?.analysis_config.file_extensions || ['.py', '.js', '.ts']).map(ext => (
-                    <span key={ext} className="px-3 py-1 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-lg text-sm font-mono">
+                    <span key={ext} className="px-2 py-1 bg-neutral-800 text-neutral-300 border border-neutral-700 rounded text-xs font-mono">
                       {ext}
                     </span>
                   ))}
-                  <button className="px-3 py-1 bg-white/5 border border-dashed border-white/10 text-slate-500 rounded-lg text-sm hover:text-white hover:border-white/20 transition-all">
+                  <button className="px-2 py-1 bg-neutral-900 border border-dashed border-neutral-700 text-neutral-500 rounded text-xs hover:text-neutral-300 hover:border-neutral-600 transition-colors">
                     + Add
                   </button>
                 </div>
@@ -200,28 +194,28 @@ export default function Configuration() {
           </div>
 
           {/* Rules Configuration */}
-          <div className="card-premium p-8">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
-              <h2 className="text-xl font-bold text-white flex items-center space-x-3">
-                <ShieldAlert className="w-6 h-6 text-indigo-400" />
-                <span>Analysis Rules Engine</span>
+          <div className="card-premium p-5">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+              <h2 className="text-base font-medium text-neutral-100 flex items-center space-x-2">
+                <ShieldAlert className="w-5 h-5 text-neutral-400" />
+                <span>Analysis Rules</span>
               </h2>
               
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
                   <input
                     type="text"
                     placeholder="Search rules..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-64 h-10 pl-10 pr-4 bg-[#0b1220] border border-white/10 rounded-xl text-sm text-white focus:border-indigo-500 focus:outline-none transition-all"
+                    className="w-56 h-9 pl-9 pr-3 bg-neutral-950 border border-neutral-800 rounded-md text-sm text-neutral-100 focus:border-neutral-700 focus:outline-none transition-colors"
                   />
                 </div>
                 <select
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="h-10 px-4 bg-[#0b1220] border border-white/10 rounded-xl text-sm text-slate-300 focus:border-indigo-500 focus:outline-none transition-all cursor-pointer"
+                  className="h-9 px-3 bg-neutral-950 border border-neutral-800 rounded-md text-sm text-neutral-300 focus:border-neutral-700 focus:outline-none transition-colors cursor-pointer"
                 >
                   <option value="all">All Categories</option>
                   {categories.map(category => (
@@ -233,14 +227,18 @@ export default function Configuration() {
               </div>
             </div>
 
-            <div className="grid gap-4">
-              {configLoading ? (
-                <div className="text-center py-20 text-slate-600 animate-pulse uppercase tracking-widest text-xs font-bold">
-                  Synchronizing Rule Registry...
+            <div className="space-y-3">
+              {configLoading || rulesLoading ? (
+                <div className="text-center py-12 text-neutral-500 text-sm">
+                  Loading rules...
+                </div>
+              ) : rulesError ? (
+                <div className="text-center py-12 text-neutral-500 text-sm">
+                  Unable to load rules. Make sure the backend is running.
                 </div>
               ) : filteredRules.length === 0 ? (
-                <div className="text-center py-20 bg-white/5 rounded-2xl border border-dashed border-white/5">
-                  <p className="text-slate-500 font-medium">No rules match your search parameters.</p>
+                <div className="text-center py-12 bg-neutral-900/50 rounded-lg border border-dashed border-neutral-800">
+                  <p className="text-neutral-500 text-sm">No rules match your search.</p>
                 </div>
               ) : (
                 filteredRules.map(rule => {
@@ -250,49 +248,48 @@ export default function Configuration() {
                   return (
                     <div
                       key={rule.rule_id}
-                      className={`group p-6 rounded-2xl border transition-all duration-300 ${
+                      className={`p-4 rounded-lg border transition-colors ${
                         enabled 
-                          ? 'bg-white/[0.02] border-white/5 hover:border-white/10 hover:bg-white/[0.04]' 
-                          : 'bg-black/20 border-white/[0.02] opacity-50'
+                          ? 'bg-neutral-900/50 border-neutral-800 hover:border-neutral-700' 
+                          : 'bg-neutral-950 border-neutral-900 opacity-50'
                       }`}
                     >
-                      <div className="flex items-start gap-6">
+                      <div className="flex items-start gap-4">
                         <button
-                          className={`mt-1 relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                            enabled ? 'bg-indigo-500' : 'bg-slate-700'
+                          className={`mt-0.5 relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors ${
+                            enabled ? 'bg-green-600' : 'bg-neutral-700'
                           }`}
                         >
                           <span
-                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                              enabled ? 'translate-x-5' : 'translate-x-0'
-                            }`}
+                            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                              enabled ? 'translate-x-4' : 'translate-x-0.5'
+                            } mt-0.5`}
                           />
                         </button>
 
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="font-bold text-white group-hover:text-indigo-300 transition-colors">{rule.name}</h3>
-                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-white/5 px-2 py-0.5 rounded">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="text-sm font-medium text-neutral-100">{rule.name}</h3>
+                            <span className="text-xs text-neutral-600 bg-neutral-800 px-1.5 py-0.5 rounded">
                               {rule.category.replace('_', ' ')}
                             </span>
                           </div>
-                          <p className="text-sm text-slate-400 leading-relaxed mb-3">{rule.description}</p>
-                          <code className="text-[10px] font-mono text-slate-600 bg-black/40 px-2 py-1 rounded border border-white/5">{rule.rule_id}</code>
+                          <p className="text-xs text-neutral-500 mb-2">{rule.description}</p>
+                          <code className="text-xs font-mono text-neutral-600">{rule.rule_id}</code>
                         </div>
 
-                        <div className="shrink-0 flex flex-col items-end gap-2">
-                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Severity</span>
+                        <div className="shrink-0">
                           <select
                             value={severity}
                             disabled={!enabled}
-                            className={`px-3 py-1.5 text-xs font-bold rounded-lg border focus:outline-none transition-all cursor-pointer ${
+                            className={`px-2 py-1 text-xs rounded border focus:outline-none transition-colors cursor-pointer ${
                               getSeverityColor(severity)
                             } ${!enabled ? 'cursor-not-allowed opacity-50' : ''}`}
                           >
-                            <option value="critical">CRITICAL</option>
-                            <option value="high">HIGH</option>
-                            <option value="medium">MEDIUM</option>
-                            <option value="low">LOW</option>
+                            <option value="critical">Critical</option>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
                           </select>
                         </div>
                       </div>
@@ -304,13 +301,13 @@ export default function Configuration() {
           </div>
         </div>
       ) : (
-        <div className="card-premium p-20 text-center border-dashed border-white/10">
-          <div className="w-20 h-20 bg-indigo-500/5 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Sliders className="w-10 h-10 text-slate-600" />
+        <div className="card-premium p-12 text-center">
+          <div className="w-12 h-12 bg-neutral-800 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Sliders className="w-6 h-6 text-neutral-500" />
           </div>
-          <h3 className="text-xl font-bold text-white mb-2">No Context Selected</h3>
-          <p className="text-slate-400 max-w-sm mx-auto leading-relaxed">
-            Please choose a repository from the project selector to view and manage its specific analysis configuration.
+          <h3 className="text-lg font-semibold text-neutral-100 mb-2">Select a repository</h3>
+          <p className="text-neutral-500 text-sm max-w-sm mx-auto">
+            Choose a repository from the dropdown above to configure its analysis settings.
           </p>
         </div>
       )}

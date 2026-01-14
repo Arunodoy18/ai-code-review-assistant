@@ -1,22 +1,48 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
+import { AuthProvider } from './contexts/AuthContext'
+import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
 import RunDetail from './pages/RunDetail'
 import Projects from './pages/Projects'
 import Configuration from './pages/Configuration'
+import Login from './pages/Login'
+import Signup from './pages/Signup'
 
 function App() {
   return (
-    <Layout>
+    <AuthProvider>
       <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/projects" element={<Projects />} />
-        <Route path="/configuration" element={<Configuration />} />
-        <Route path="/analysis/:id" element={<RunDetail />} />
+        {/* Public routes */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        
+        {/* Protected routes */}
+        <Route path="/" element={
+          <ProtectedRoute>
+            <Layout><Dashboard /></Layout>
+          </ProtectedRoute>
+        } />
+        <Route path="/projects" element={
+          <ProtectedRoute>
+            <Layout><Projects /></Layout>
+          </ProtectedRoute>
+        } />
+        <Route path="/configuration" element={
+          <ProtectedRoute>
+            <Layout><Configuration /></Layout>
+          </ProtectedRoute>
+        } />
+        <Route path="/analysis/:id" element={
+          <ProtectedRoute>
+            <Layout><RunDetail /></Layout>
+          </ProtectedRoute>
+        } />
+        
         {/* Fallback for unknown routes */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </Layout>
+    </AuthProvider>
   )
 }
 

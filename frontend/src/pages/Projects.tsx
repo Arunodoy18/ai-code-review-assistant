@@ -16,9 +16,9 @@ export default function Projects() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center h-[60vh] animate-pulse">
-        <FolderGit2 className="w-12 h-12 text-indigo-500/50 mb-4 animate-bounce" />
-        <div className="text-slate-500 font-medium text-lg">Loading repositories...</div>
+      <div className="flex flex-col items-center justify-center h-[60vh]">
+        <FolderGit2 className="w-8 h-8 text-neutral-600 mb-4 animate-pulse" />
+        <div className="text-neutral-500 text-sm">Loading repositories...</div>
       </div>
     )
   }
@@ -26,10 +26,10 @@ export default function Projects() {
   if (isNetworkError) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
-        <div className="glass-panel p-8 text-center border-amber-500/20 max-w-md">
-          <Activity className="w-12 h-12 text-amber-500 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-white mb-2">Connection Issue</h3>
-          <p className="text-slate-400 mb-6">Unable to reach the server. The service may be warming up.</p>
+        <div className="glass-panel p-8 text-center max-w-md">
+          <Activity className="w-8 h-8 text-yellow-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-neutral-100 mb-2">Connection Issue</h3>
+          <p className="text-neutral-400 text-sm mb-6">Unable to reach the server. The service may be warming up.</p>
           <button onClick={() => refetch()} className="btn-primary w-full flex items-center justify-center space-x-2">
             <RefreshCcw className={`w-4 h-4 ${isRefetching ? 'animate-spin' : ''}`} />
             <span>Retry Connection</span>
@@ -40,19 +40,19 @@ export default function Projects() {
   }
 
   return (
-    <div className="space-y-10">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+    <div className="space-y-8">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Connected Projects</h1>
-          <p className="text-slate-400 max-w-2xl leading-relaxed">
-            Repositories with active AI monitoring. Open a pull request on any of these to trigger an analysis.
+          <h1 className="text-2xl font-semibold text-neutral-100 mb-1">Projects</h1>
+          <p className="text-neutral-500 text-sm">
+            Repositories with active AI monitoring.
           </p>
         </div>
         <a
           href="https://github.com/settings/apps/new"
           target="_blank"
           rel="noopener noreferrer"
-          className="btn-primary flex items-center space-x-2 shadow-indigo-500/20"
+          className="btn-primary flex items-center space-x-2"
         >
           <Plus className="w-4 h-4" />
           <span>Add Repository</span>
@@ -60,93 +60,93 @@ export default function Projects() {
       </div>
 
       {fetchError && (
-        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-amber-300 text-sm">
-          Note: {fetchError}
+        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-md p-3 text-yellow-400 text-sm">
+          {fetchError}
         </div>
       )}
 
       {projects.length === 0 ? (
-        <div className="card-premium p-16 text-center border-dashed border-white/10 max-w-3xl mx-auto">
-          <div className="w-20 h-20 bg-indigo-500/5 rounded-full flex items-center justify-center mx-auto mb-8">
-            <Github className="w-10 h-10 text-slate-500" />
+        <div className="card-premium p-12 text-center border-dashed max-w-2xl mx-auto">
+          <div className="w-12 h-12 bg-neutral-800 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Github className="w-6 h-6 text-neutral-500" />
           </div>
-          <h3 className="text-2xl font-bold text-white mb-4">No repositories connected yet</h3>
-          <p className="text-slate-400 mb-10 leading-relaxed">
-            Install the AI Code Review GitHub App on your repositories to enable automated analysis and security scanning.
+          <h3 className="text-lg font-semibold text-neutral-100 mb-2">No repositories connected</h3>
+          <p className="text-neutral-500 text-sm mb-8">
+            Install the AI Code Review GitHub App on your repositories to enable automated analysis.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left mb-10">
             <div className="bg-white/5 p-4 rounded-xl border border-white/5">
-              <div className="text-indigo-400 font-bold mb-1">Step 1</div>
-              <div className="text-sm text-slate-300">Create GitHub App following GITHUB_APP_SETUP.md</div>
+              <div className="text-neutral-400 font-semibold mb-1">Step 1</div>
+              <div className="text-sm text-neutral-300">Create a GitHub App to connect your repositories</div>
             </div>
             <div className="bg-white/5 p-4 rounded-xl border border-white/5">
-              <div className="text-indigo-400 font-bold mb-1">Step 2</div>
-              <div className="text-sm text-slate-300">Install app on your target repositories</div>
+              <div className="text-neutral-400 font-semibold mb-1">Step 2</div>
+              <div className="text-sm text-neutral-300">Install the app on your target repositories</div>
             </div>
           </div>
           <a
             href="https://github.com/settings/apps/new"
             target="_blank"
             rel="noopener noreferrer"
-            className="btn-primary inline-flex items-center space-x-2 px-10 py-3"
+            className="btn-primary inline-flex items-center space-x-2"
           >
             <span>Setup GitHub Integration</span>
             <ExternalLink className="w-4 h-4" />
           </a>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {projects.map((project: Project) => (
-            <div key={project.id} className="card-premium p-6 group">
-              <div className="flex items-start justify-between mb-6">
-                <div className="flex items-center space-x-4">
-                  <div className="p-3 bg-indigo-500/10 rounded-xl border border-indigo-500/20 group-hover:bg-indigo-500/20 transition-all">
-                    <Github className="w-6 h-6 text-indigo-400" />
+            <div key={project.id} className="card-premium p-5 group">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-neutral-800 rounded-md">
+                    <Github className="w-5 h-5 text-neutral-400" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-white group-hover:text-indigo-300 transition-colors truncate max-w-[180px]">
+                    <h3 className="text-sm font-medium text-neutral-100 group-hover:text-white transition-colors truncate max-w-[180px]">
                       {project.name}
                     </h3>
-                    <p className="text-xs text-slate-500 font-medium truncate max-w-[180px]">
+                    <p className="text-xs text-neutral-500 truncate max-w-[180px]">
                       {project.github_repo_full_name}
                     </p>
                   </div>
                 </div>
-                <div className="px-2 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
+                <div className="px-2 py-0.5 bg-green-500/10 border border-green-500/20 rounded text-xs text-green-400">
                   Active
                 </div>
               </div>
 
-              <div className="space-y-4 mb-8">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-500 font-medium flex items-center space-x-2">
+              <div className="space-y-2 mb-4 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-neutral-500 flex items-center space-x-1.5">
                     <Activity className="w-3.5 h-3.5" />
-                    <span>Review Mode</span>
+                    <span>Mode</span>
                   </span>
-                  <span className="text-slate-300 font-semibold">Automatic</span>
+                  <span className="text-neutral-300">Automatic</span>
                 </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-500 font-medium flex items-center space-x-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-neutral-500 flex items-center space-x-1.5">
                     <Clock className="w-3.5 h-3.5" />
                     <span>Connected</span>
                   </span>
-                  <span className="text-slate-300 font-semibold">
+                  <span className="text-neutral-300">
                     {formatDistanceToNow(new Date(project.created_at), { addSuffix: true })}
                   </span>
                 </div>
               </div>
 
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2">
                 <a
                   href={`https://github.com/${project.github_repo_full_name}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-1 btn-secondary py-2 flex items-center justify-center space-x-2 text-xs"
+                  className="flex-1 btn-secondary py-1.5 flex items-center justify-center space-x-1.5 text-xs"
                 >
                   <ExternalLink className="w-3 h-3" />
-                  <span>Repository</span>
+                  <span>View Repo</span>
                 </a>
-                <button className="btn-secondary py-2 px-3 text-slate-400 hover:text-white" title="Project Settings">
+                <button className="btn-secondary py-1.5 px-2.5" title="Settings">
                   <Settings className="w-4 h-4" />
                 </button>
               </div>

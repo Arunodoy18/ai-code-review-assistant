@@ -4,17 +4,18 @@
 
 @layer base {
   :root {
-    --background: #0b1220;
-    --card: #0f172a;
-    --primary: #6366f1; /* Indigo 500 */
-    --secondary: #3b82f6; /* Blue 500 */
-    --success: #10b981; /* Emerald 500 */
-    --warning: #f59e0b; /* Amber 500 */
-    --error: #ef4444; /* Red 500 */
+    --background: #0a0a0a;
+    --card: #141414;
+    --border: #262626;
+    --primary: #fafafa;
+    --primary-muted: #a3a3a3;
+    --success: #22c55e;
+    --warning: #eab308;
+    --error: #ef4444;
   }
 
   body {
-    @apply bg-[#0b1220] text-slate-100 antialiased selection:bg-indigo-500/30;
+    @apply bg-neutral-950 text-neutral-100 antialiased;
     margin: 0;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
   }
@@ -26,34 +27,39 @@
 
 @layer components {
   .card-premium {
-    @apply bg-[#0f172a] border border-white/5 shadow-lg shadow-black/20 rounded-xl transition-all duration-200 ease-out hover:translate-y-[-2px] hover:border-white/10 hover:shadow-xl hover:shadow-black/40;
+    @apply bg-neutral-900 border border-neutral-800 rounded-lg transition-colors hover:border-neutral-700;
   }
 
   .btn-primary {
-    @apply px-4 py-2 bg-gradient-to-r from-indigo-500 to-blue-500 text-white rounded-lg font-medium transition-all duration-200 ease-out hover:shadow-[0_0_20px_rgba(79,70,229,0.4)] active:scale-[0.98];
+    @apply px-4 py-2 bg-neutral-100 hover:bg-white text-neutral-900 rounded-md font-medium text-sm transition-colors;
   }
 
   .btn-secondary {
-    @apply px-4 py-2 bg-slate-800 border border-white/5 text-slate-300 rounded-lg font-medium transition-all duration-200 ease-out hover:bg-slate-700 hover:text-white active:scale-[0.98];
+    @apply px-4 py-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-neutral-200 rounded-md font-medium text-sm transition-colors;
   }
 
   .glass-panel {
-    @apply bg-[#0f172a]/80 backdrop-blur-md border border-white/5 shadow-xl shadow-black/20 rounded-2xl;
+    @apply bg-neutral-900/90 backdrop-blur-md border border-neutral-800 rounded-lg;
+  }
+
+  /* Form inputs */
+  .input {
+    @apply w-full h-10 px-3 bg-neutral-900 border border-neutral-800 rounded-md text-neutral-100 text-sm placeholder:text-neutral-600 focus:outline-none focus:border-neutral-600 focus:ring-1 focus:ring-neutral-600 transition-colors;
   }
 }
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-[#0b1220];
+  @apply bg-neutral-950;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-slate-800 rounded-full border-2 border-[#0b1220] hover:bg-slate-700 transition-colors;
+  @apply bg-neutral-800 rounded-full hover:bg-neutral-700 transition-colors;
 }
 
 /* Smooth scrolling */
@@ -61,12 +67,12 @@ html {
   scroll-behavior: smooth;
 }
 
-/* Animations */
+/* Subtle animations */
 @keyframes fade-in {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 .animate-fade-in {
-  animation: fade-in 0.4s ease-out forwards;
+  animation: fade-in 0.2s ease-out forwards;
 }
