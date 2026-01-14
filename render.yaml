@@ -1,0 +1,102 @@
+# Render Blueprint - AI Code Review Assistant
+# Deploy with: https://render.com/deploy?repo=<your-repo-url>
+#
+# This creates:
+# - PostgreSQL database
+# - Redis instance  
+# - Backend API (Web Service)
+# - Celery Worker (Background Worker)
+#
+# You still need to:
+# 1. Set secret environment variables in Render dashboard
+# 2. Deploy frontend to Netlify separately
+# 3. Update FRONTEND_URL after Netlify deploy
+
+databases:
+  - name: codereview-db
+    databaseName: codereview_db
+    user: codereview
+    plan: starter  # $7/month, or use 'free' for testing
+
+services:
+  # Redis Cache
+  - type: redis
+    name: codereview-redis
+    plan: starter  # $10/month, or use 'free' for testing
+    ipAllowList: []  # Only allow internal access
+
+  # Backend API
+  - type: web
+    name: codereview-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: starter  # $7/month
+    healthCheckPath: /api/health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: codereview-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: codereview-redis
+          type: redis
+          property: connectionString
+      - key: ENABLE_GITHUB_INTEGRATION
+        value: "true"
+      - key: ENABLE_GITHUB_WEBHOOKS
+        value: "true"
+      - key: ENABLE_BACKGROUND_TASKS
+        value: "true"
+      # Secret variables - set manually in Render dashboard:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GITHUB_APP_ID
+        sync: false
+      - key: GITHUB_WEBHOOK_SECRET
+        sync: false
+      - key: GITHUB_APP_PRIVATE_KEY_B64
+        sync: false
+      - key: JWT_SECRET_KEY
+        sync: false
+      - key: FRONTEND_URL
+        sync: false  # Set after Netlify deploy
+
+  # Celery Background Worker
+  - type: worker
+    name: codereview-worker
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: starter  # $7/month
+    dockerCommand: celery -A app.tasks.celery_app worker --loglevel=info
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: codereview-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: codereview-redis
+          type: redis
+          property: connectionString
+      - key: ENABLE_GITHUB_INTEGRATION
+        value: "true"
+      - key: ENABLE_BACKGROUND_TASKS
+        value: "true"
+      # Secret variables - set manually in Render dashboard:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GITHUB_APP_ID
+        sync: false
+      - key: GITHUB_WEBHOOK_SECRET
+        sync: false
+      - key: GITHUB_APP_PRIVATE_KEY_B64
+        sync: false
+      - key: JWT_SECRET_KEY
+        sync: false

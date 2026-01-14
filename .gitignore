@@ -51,3 +51,7 @@ Thumbs.db
 
 # Docker
 *.pid
+
+# Deployment services
+.orchids/
+.vercel/

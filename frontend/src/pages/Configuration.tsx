@@ -4,12 +4,14 @@ import { api as apiClient } from '../api/client';
 import { Settings, ShieldAlert, Sliders, Search, Filter, CheckCircle2, AlertCircle } from 'lucide-react';
 
 interface Rule {
-  id: string;
+  rule_id: string;
   name: string;
   description: string;
   category: string;
   default_severity: string;
-  enabled_by_default: boolean;
+  languages: string[];
+  configurable: boolean;
+  requires_ai: boolean;
 }
 
 interface ProjectConfig {
@@ -36,19 +38,22 @@ export default function Configuration() {
   const [searchQuery, setSearchQuery] = useState('');
 
   // Fetch all projects
-  const { data: projects = [] } = useQuery<Project[]>({
+  const { data: projectsResponse } = useQuery({
     queryKey: ['projects'],
     queryFn: apiClient.getProjects
   });
+  const projects: Project[] = (projectsResponse as any)?.data || (Array.isArray(projectsResponse) ? projectsResponse : []);
 
   // Fetch all available rules
-  const { data: rules = [] } = useQuery<Rule[]>({
+  const { data: rulesResponse } = useQuery({
     queryKey: ['rules'],
     queryFn: async () => {
-      const response = await (apiClient as any).getRules();
-      return response;
+      const response = await fetch('http://localhost:8000/api/config/rules');
+      if (!response.ok) throw new Error('Failed to fetch rules');
+      return response.json();
     }
   });
+  const rules: Rule[] = Array.isArray(rulesResponse) ? rulesResponse : [];
 
   // Fetch project configuration
   const { data: config, isLoading: configLoading } = useQuery<ProjectConfig>({
@@ -75,12 +80,12 @@ export default function Configuration() {
     if (!config) return false;
     if (config.enabled_rules.includes(ruleId)) return true;
     if (config.disabled_rules.includes(ruleId)) return false;
-    const rule = rules.find(r => r.id === ruleId);
-    return rule?.enabled_by_default ?? false;
+    const rule = rules.find(r => r.rule_id === ruleId);
+    return rule?.configurable ?? false;
   };
 
   const getRuleSeverity = (rule: Rule): string => {
-    return config?.severity_overrides?.[rule.id] || rule.default_severity;
+    return config?.severity_overrides?.[rule.rule_id] || rule.default_severity;
   };
 
   const categories = Array.from(new Set(rules.map(r => r.category)));
@@ -239,12 +244,12 @@ export default function Configuration() {
                 </div>
               ) : (
                 filteredRules.map(rule => {
-                  const enabled = isRuleEnabled(rule.id);
+                  const enabled = isRuleEnabled(rule.rule_id);
                   const severity = getRuleSeverity(rule);
                   
                   return (
                     <div
-                      key={rule.id}
+                      key={rule.rule_id}
                       className={`group p-6 rounded-2xl border transition-all duration-300 ${
                         enabled 
                           ? 'bg-white/[0.02] border-white/5 hover:border-white/10 hover:bg-white/[0.04]' 
@@ -272,7 +277,7 @@ export default function Configuration() {
                             </span>
                           </div>
                           <p className="text-sm text-slate-400 leading-relaxed mb-3">{rule.description}</p>
-                          <code className="text-[10px] font-mono text-slate-600 bg-black/40 px-2 py-1 rounded border border-white/5">{rule.id}</code>
+                          <code className="text-[10px] font-mono text-slate-600 bg-black/40 px-2 py-1 rounded border border-white/5">{rule.rule_id}</code>
                         </div>
 
                         <div className="shrink-0 flex flex-col items-end gap-2">

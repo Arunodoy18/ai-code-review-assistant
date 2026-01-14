@@ -38,10 +38,11 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS - Production-ready configuration
-def get_cors_origins() -> list[str]:
-    """Get CORS origins based on environment."""
-    origins = [
+# CORS - Simple localhost configuration for development
+# Production deployments should configure FRONTEND_URL environment variable
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
         "http://localhost:5173",
         "http://localhost:5174",
         "http://localhost:5175",
@@ -50,25 +51,8 @@ def get_cors_origins() -> list[str]:
         "http://127.0.0.1:5174",
         "http://127.0.0.1:5175",
         "http://127.0.0.1:8000",
-    ]
-    
-    # Add production frontend URL (HTTPS)
-    if settings.frontend_url:
-        origins.append(settings.frontend_url)
-        # Also add HTTPS version if HTTP provided
-        if settings.frontend_url.startswith("http://"):
-            origins.append(settings.frontend_url.replace("http://", "https://"))
-    
-    # Add Azure Container Apps URL if detected
-    if "azurecontainerapps.io" in settings.frontend_url:
-        origins.append("https://codereview-frontend.jollysea-c5c0b121.centralus.azurecontainerapps.io")
-    
-    logger.info(f"CORS enabled for origins: {origins}")
-    return origins
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origin_regex="https?://(localhost|127\.0\.0\.1)(:[0-9]+)?",
+        settings.frontend_url,
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
