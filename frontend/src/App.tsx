@@ -8,12 +8,14 @@ import Projects from './pages/Projects'
 import Configuration from './pages/Configuration'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
+import Landing from './pages/Landing'
 
 function App() {
   return (
     <AuthProvider>
       <Routes>
         {/* Public routes */}
+        <Route path="/welcome" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         
