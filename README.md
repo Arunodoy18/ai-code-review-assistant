@@ -122,3 +122,6 @@ For deployment instructions (Azure, Docker, CI/CD), see the `/docs/` folder:
 ## License
 
 MIT License
+This project is liscensed under AGPL-3.0.
+Commercial SaaS usage requires permission.
+Attribution is required..
