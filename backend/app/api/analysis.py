@@ -6,7 +6,9 @@ from app.config import settings
 from app.tasks.analysis import analyze_pr_task
 from typing import Optional, List
 from datetime import datetime
+from pydantic import BaseModel
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -144,3 +146,129 @@ async def resolve_finding(finding_id: int, db: Session = Depends(get_db)):
     db.commit()
     
     return {"message": "Finding resolved", "finding_id": finding_id}
+
+
+@router.patch("/findings/{finding_id}/dismiss")
+async def dismiss_finding(finding_id: int, db: Session = Depends(get_db)):
+    """Dismiss a finding and learn from it (false-positive suppression).
+    
+    This marks the finding as dismissed and records the pattern so
+    similar findings can be auto-suppressed in future runs.
+    """
+    finding = db.query(Finding).filter(Finding.id == finding_id).first()
+    if not finding:
+        raise HTTPException(status_code=404, detail="Finding not found")
+    
+    finding.is_dismissed = 1
+    
+    # Learn: record the dismissed pattern on the project
+    run = db.query(AnalysisRun).filter(AnalysisRun.id == finding.run_id).first()
+    if run:
+        project = db.query(Project).filter(Project.id == run.project_id).first()
+        if project:
+            patterns = project.dismissed_patterns or []
+            pattern = {
+                "rule_id": finding.rule_id,
+                "title": finding.title,
+                "file_pattern": finding.file_path.rsplit("/", 1)[-1] if "/" in finding.file_path else finding.file_path,
+                "category": finding.category.value if hasattr(finding.category, 'value') else str(finding.category),
+                "dismissed_count": 1,
+            }
+            # Check if pattern already exists
+            existing = next((p for p in patterns if p.get("rule_id") == pattern["rule_id"] and p.get("title") == pattern["title"]), None)
+            if existing:
+                existing["dismissed_count"] = existing.get("dismissed_count", 0) + 1
+            else:
+                patterns.append(pattern)
+            project.dismissed_patterns = patterns
+    
+    db.commit()
+    
+    return {"message": "Finding dismissed and pattern learned", "finding_id": finding_id}
+
+
+@router.get("/findings/{finding_id}/auto-fix")
+async def get_auto_fix(finding_id: int, db: Session = Depends(get_db)):
+    """Get the AI-generated auto-fix for a finding"""
+    finding = db.query(Finding).filter(Finding.id == finding_id).first()
+    if not finding:
+        raise HTTPException(status_code=404, detail="Finding not found")
+    
+    return {
+        "finding_id": finding_id,
+        "has_fix": bool(finding.auto_fix_code),
+        "auto_fix_code": finding.auto_fix_code,
+    }
+
+
+@router.post("/findings/{finding_id}/generate-fix")
+async def generate_fix_on_demand(finding_id: int, db: Session = Depends(get_db)):
+    """Generate an auto-fix on demand for a finding that doesn't have one yet"""
+    finding = db.query(Finding).filter(Finding.id == finding_id).first()
+    if not finding:
+        raise HTTPException(status_code=404, detail="Finding not found")
+    
+    if finding.auto_fix_code:
+        return {"finding_id": finding_id, "auto_fix_code": finding.auto_fix_code, "cached": True}
+    
+    try:
+        from app.services.llm_service import LLMService
+        llm = LLMService()
+        
+        finding_data = {
+            "title": finding.title,
+            "severity": finding.severity.value if hasattr(finding.severity, 'value') else str(finding.severity),
+            "file_path": finding.file_path,
+            "line_number": finding.line_number,
+            "description": finding.description,
+            "suggestion": finding.suggestion,
+        }
+        
+        fix = llm.generate_auto_fix(finding_data, finding.code_snippet or "")
+        if fix:
+            finding.auto_fix_code = fix
+            db.commit()
+        
+        return {"finding_id": finding_id, "auto_fix_code": fix, "cached": False}
+    except Exception as e:
+        logger.error(f"On-demand fix generation failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate fix")
+
+
+@router.get("/runs/{run_id}/risk-score")
+async def get_risk_score(run_id: int, db: Session = Depends(get_db)):
+    """Get the PR risk score for an analysis run"""
+    run = db.query(AnalysisRun).filter(AnalysisRun.id == run_id).first()
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+    
+    return {
+        "run_id": run_id,
+        "risk_score": run.risk_score,
+        "risk_breakdown": run.risk_breakdown or {},
+    }
+
+
+@router.get("/runs/{run_id}/summary")
+async def get_pr_summary(run_id: int, db: Session = Depends(get_db)):
+    """Get the natural language PR summary for non-technical stakeholders"""
+    run = db.query(AnalysisRun).filter(AnalysisRun.id == run_id).first()
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+    
+    return {
+        "run_id": run_id,
+        "pr_summary": run.pr_summary,
+        "has_summary": bool(run.pr_summary),
+    }
+
+
+@router.get("/runs/{run_id}/dismissed")
+async def get_dismissed_findings(run_id: int, db: Session = Depends(get_db)):
+    """Get findings that were dismissed in this run"""
+    findings = db.query(Finding).filter(Finding.run_id == run_id, Finding.is_dismissed == 1).all()
+    return {
+        "run_id": run_id,
+        "dismissed_count": len(findings),
+        "findings": findings,
+    }

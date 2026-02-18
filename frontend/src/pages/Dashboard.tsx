@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import { AnalysisRun } from '../types'
 import { formatDistanceToNow, format } from 'date-fns'
-import { ExternalLink, AlertCircle, CheckCircle, Clock, XCircle, FileCode, AlertTriangle, Activity, Filter, RefreshCcw } from 'lucide-react'
+import { ExternalLink, AlertCircle, CheckCircle, Clock, XCircle, FileCode, AlertTriangle, Activity, Filter, RefreshCcw, Shield, ChevronRight } from 'lucide-react'
 import { useState, useMemo } from 'react'
 
 export default function Dashboard() {
@@ -19,13 +19,13 @@ export default function Dashboard() {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'completed':
-        return <CheckCircle className="w-5 h-5 text-emerald-500" />
+        return <CheckCircle className="w-5 h-5 text-emerald-400" />
       case 'failed':
-        return <XCircle className="w-5 h-5 text-red-500" />
+        return <XCircle className="w-5 h-5 text-red-400" />
       case 'running':
-        return <Clock className="w-5 h-5 text-blue-500 animate-spin" />
+        return <Clock className="w-5 h-5 text-copper-400 animate-spin" />
       default:
-        return <Clock className="w-5 h-5 text-amber-500" />
+        return <Clock className="w-5 h-5 text-sand-500 animate-pulse-soft" />
     }
   }
 
@@ -76,26 +76,24 @@ export default function Dashboard() {
     }
   }, [runs])
 
-    if (isLoading) {
-    console.log('[Dashboard] Rendering loading state')
+  if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh]">
-        <Activity className="w-8 h-8 text-neutral-600 mb-4 animate-pulse" />
-        <div className="text-neutral-500 text-sm">Loading dashboard...</div>
+        <Activity className="w-8 h-8 text-sand-700 mb-4 animate-pulse" />
+        <div className="text-sand-600 text-sm">Loading dashboard...</div>
       </div>
     )
   }
 
   if (error || fetchError) {
-    console.log('[Dashboard] Rendering error state', error, fetchError)
     return (
       <div className="flex items-center justify-center h-[60vh]">
-        <div className="glass-panel p-8 max-w-md text-center">
-          <div className="w-12 h-12 bg-neutral-800 rounded-full flex items-center justify-center mx-auto mb-4">
-            <AlertCircle className="w-6 h-6 text-neutral-400" />
+        <div className="card p-8 max-w-md text-center">
+          <div className="w-12 h-12 bg-surface-3 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-6 h-6 text-sand-500" />
           </div>
-          <h3 className="text-lg font-semibold text-neutral-100 mb-2">Service Temporarily Unavailable</h3>
-          <p className="text-neutral-400 text-sm mb-6">
+          <h3 className="text-lg font-bold text-sand-100 mb-2">Service Temporarily Unavailable</h3>
+          <p className="text-sand-500 text-sm mb-6">
             {fetchError || 'Unable to load analysis runs. No data yet or service warming up.'}
           </p>
           <button onClick={() => refetch()} className="btn-primary w-full flex items-center justify-center space-x-2">
@@ -107,24 +105,22 @@ export default function Dashboard() {
     )
   }
 
-  console.log('[Dashboard] Rendering success state with data:', runs.length, 'runs')
-
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-fade-in">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-neutral-100 mb-1">
+          <h1 className="text-2xl font-bold text-sand-100 mb-1">
             Dashboard
           </h1>
-          <p className="text-neutral-500 text-sm">
+          <p className="text-sand-600 text-sm">
             Monitor code reviews and security insights across your repositories.
           </p>
         </div>
         <div className="flex items-center space-x-2">
-          <div className="h-8 px-3 bg-neutral-900 border border-neutral-800 rounded-md flex items-center space-x-2 text-xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-            <span className="text-neutral-400">Live</span>
+          <div className="h-8 px-3 bg-surface-1 border border-surface-4 rounded-lg flex items-center space-x-2 text-xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-sand-500">Live</span>
           </div>
         </div>
       </div>
@@ -132,36 +128,44 @@ export default function Dashboard() {
       {/* Stats Cards */}
       {runs.length > 0 && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="card-premium p-4">
+          <div className="card p-5">
             <div className="flex items-center justify-between mb-3">
-              <CheckCircle className="w-5 h-5 text-green-500" />
-              <span className="text-xl font-semibold text-neutral-100">{stats.completed}</span>
+              <div className="w-9 h-9 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-center">
+                <CheckCircle className="w-4 h-4 text-emerald-400" />
+              </div>
+              <span className="text-2xl font-bold text-sand-100">{stats.completed}</span>
             </div>
-            <div className="text-neutral-500 text-xs">Completed</div>
+            <div className="text-sand-600 text-xs font-medium uppercase tracking-wider">Completed</div>
           </div>
 
-          <div className="card-premium p-4">
+          <div className="card p-5">
             <div className="flex items-center justify-between mb-3">
-              <Clock className="w-5 h-5 text-blue-500" />
-              <span className="text-xl font-semibold text-neutral-100">{stats.running}</span>
+              <div className="w-9 h-9 bg-copper-500/10 border border-copper-500/20 rounded-xl flex items-center justify-center">
+                <Clock className="w-4 h-4 text-copper-400" />
+              </div>
+              <span className="text-2xl font-bold text-sand-100">{stats.running}</span>
             </div>
-            <div className="text-neutral-500 text-xs">Running</div>
+            <div className="text-sand-600 text-xs font-medium uppercase tracking-wider">Running</div>
           </div>
 
-          <div className="card-premium p-4">
+          <div className="card p-5">
             <div className="flex items-center justify-between mb-3">
-              <AlertTriangle className="w-5 h-5 text-yellow-500" />
-              <span className="text-xl font-semibold text-neutral-100">{stats.totalFindings}</span>
+              <div className="w-9 h-9 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center justify-center">
+                <AlertTriangle className="w-4 h-4 text-amber-400" />
+              </div>
+              <span className="text-2xl font-bold text-sand-100">{stats.totalFindings}</span>
             </div>
-            <div className="text-neutral-500 text-xs">Findings</div>
+            <div className="text-sand-600 text-xs font-medium uppercase tracking-wider">Findings</div>
           </div>
 
-          <div className="card-premium p-4">
+          <div className="card p-5">
             <div className="flex items-center justify-between mb-3">
-              <FileCode className="w-5 h-5 text-neutral-400" />
-              <span className="text-xl font-semibold text-neutral-100">{stats.filesAnalyzed}</span>
+              <div className="w-9 h-9 bg-sand-500/10 border border-sand-500/20 rounded-xl flex items-center justify-center">
+                <FileCode className="w-4 h-4 text-sand-400" />
+              </div>
+              <span className="text-2xl font-bold text-sand-100">{stats.filesAnalyzed}</span>
             </div>
-            <div className="text-neutral-500 text-xs">Files Scanned</div>
+            <div className="text-sand-600 text-xs font-medium uppercase tracking-wider">Files Scanned</div>
           </div>
         </div>
       )}
@@ -170,16 +174,16 @@ export default function Dashboard() {
       <div className="space-y-6">
         {/* Filters Bar */}
         {runs.length > 0 && (
-          <div className="flex flex-wrap items-center gap-3 p-2 bg-neutral-900 rounded-lg border border-neutral-800">
-            <div className="flex items-center px-2 space-x-2 text-neutral-500">
+          <div className="flex flex-wrap items-center gap-3 p-2.5 bg-surface-1 rounded-xl border border-surface-4">
+            <div className="flex items-center px-2 space-x-2 text-sand-600">
               <Filter className="w-4 h-4" />
-              <span className="text-xs font-medium">Filter</span>
+              <span className="text-xs font-semibold uppercase tracking-wider">Filter</span>
             </div>
             
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-neutral-950 text-neutral-300 text-sm rounded-md px-3 py-1.5 border border-neutral-800 focus:border-neutral-700 focus:outline-none transition-colors cursor-pointer"
+              className="bg-surface-0 text-sand-300 text-sm rounded-lg px-3 py-1.5 border border-surface-4 focus:border-copper-600 focus:outline-none focus:ring-1 focus:ring-copper-600 transition-colors cursor-pointer"
             >
               <option value="all">All Statuses</option>
               <option value="completed">Completed</option>
@@ -190,14 +194,14 @@ export default function Dashboard() {
             <select
               value={timeFilter}
               onChange={(e) => setTimeFilter(e.target.value)}
-              className="bg-neutral-950 text-neutral-300 text-sm rounded-md px-3 py-1.5 border border-neutral-800 focus:border-neutral-700 focus:outline-none transition-colors cursor-pointer"
+              className="bg-surface-0 text-sand-300 text-sm rounded-lg px-3 py-1.5 border border-surface-4 focus:border-copper-600 focus:outline-none focus:ring-1 focus:ring-copper-600 transition-colors cursor-pointer"
             >
               <option value="all">All Time</option>
               <option value="today">Past 24 Hours</option>
               <option value="week">Past 7 Days</option>
             </select>
 
-            <div className="ml-auto px-3 py-1 text-xs text-neutral-500">
+            <div className="ml-auto px-3 py-1 text-xs text-sand-600 font-medium">
               {filteredRuns.length} of {runs.length}
             </div>
           </div>
@@ -205,12 +209,12 @@ export default function Dashboard() {
 
         {/* Runs Grid/List */}
         {runs.length === 0 ? (
-          <div className="card-premium p-12 text-center border-dashed">
-            <div className="w-12 h-12 bg-neutral-800 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Activity className="w-6 h-6 text-neutral-500" />
+          <div className="card p-12 text-center border-dashed">
+            <div className="w-14 h-14 bg-surface-3 rounded-2xl flex items-center justify-center mx-auto mb-5">
+              <Activity className="w-7 h-7 text-sand-600" />
             </div>
-            <h3 className="text-lg font-semibold text-neutral-100 mb-2">No analysis runs yet</h3>
-            <p className="text-neutral-500 text-sm mb-6 max-w-sm mx-auto">
+            <h3 className="text-lg font-bold text-sand-100 mb-2">No analysis runs yet</h3>
+            <p className="text-sand-500 text-sm mb-6 max-w-sm mx-auto">
               Connect a repository to start receiving AI-powered code reviews.
             </p>
             <Link to="/projects" className="btn-primary inline-flex items-center space-x-2">
@@ -219,8 +223,8 @@ export default function Dashboard() {
             </Link>
           </div>
         ) : filteredRuns.length === 0 ? (
-          <div className="card-premium p-8 text-center">
-            <p className="text-neutral-500 text-sm mb-4">No results match your filters.</p>
+          <div className="card p-8 text-center">
+            <p className="text-sand-500 text-sm mb-4">No results match your filters.</p>
             <button
               onClick={() => { setStatusFilter('all'); setTimeFilter('all'); }}
               className="btn-secondary text-xs"
@@ -233,44 +237,55 @@ export default function Dashboard() {
             {filteredRuns.map((run) => (
               <Link
                 key={run.id}
-                to={`/runs/${run.id}`}
-                className="card-premium p-4 flex items-center justify-between group"
+                to={`/analysis/${run.id}`}
+                className="card-interactive p-4 flex items-center justify-between group"
               >
                 <div className="flex items-center space-x-4">
-                  <div className="p-1.5 bg-neutral-800 rounded-md">
+                  <div className="p-1.5 bg-surface-3 rounded-lg border border-surface-4">
                     {getStatusIcon(run.status)}
                   </div>
                   <div>
                     <div className="flex items-center space-x-2 mb-0.5">
-                      <h3 className="text-sm font-medium text-neutral-100 group-hover:text-white transition-colors">
+                      <h3 className="text-sm font-semibold text-sand-100 group-hover:text-sand-50 transition-colors">
                         {run.pr_title || `Analysis #${run.pr_number}`}
                       </h3>
-                      <span className="text-xs text-neutral-600 bg-neutral-800 px-1.5 py-0.5 rounded">
+                      <span className="text-[11px] text-sand-600 bg-surface-3 px-1.5 py-0.5 rounded-md font-mono">
                         #{run.pr_number}
                       </span>
                     </div>
-                    <div className="flex items-center space-x-3 text-xs text-neutral-500">
+                    <div className="flex items-center space-x-3 text-xs text-sand-600">
                       <span>{run.pr_author}</span>
-                      <span>•</span>
+                      <span className="text-surface-4">•</span>
                       <span>{formatDistanceToNow(new Date(run.started_at), { addSuffix: true })}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-6">
+                <div className="flex items-center space-x-5">
+                  {run.status === 'completed' && run.risk_score != null && (
+                    <div className={`hidden sm:flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
+                      run.risk_score >= 80 ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+                      run.risk_score >= 60 ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                      run.risk_score >= 35 ? 'bg-copper-500/10 text-copper-400 border border-copper-500/20' :
+                      'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                    }`}>
+                      <Shield className="w-3.5 h-3.5" />
+                      <span>{Math.round(run.risk_score)}</span>
+                    </div>
+                  )}
                   {run.status === 'completed' && (
                     <div className="hidden sm:flex items-center space-x-4 text-xs">
                       <div className="text-center">
-                        <div className="font-medium text-neutral-200">{run.run_metadata?.findings_count || 0}</div>
-                        <div className="text-neutral-600">issues</div>
+                        <div className="font-semibold text-sand-200">{run.run_metadata?.findings_count || 0}</div>
+                        <div className="text-sand-700">issues</div>
                       </div>
                       <div className="text-center">
-                        <div className="font-medium text-neutral-200">{run.run_metadata?.files_analyzed || 0}</div>
-                        <div className="text-neutral-600">files</div>
+                        <div className="font-semibold text-sand-200">{run.run_metadata?.files_analyzed || 0}</div>
+                        <div className="text-sand-700">files</div>
                       </div>
                     </div>
                   )}
-                  <ExternalLink className="w-4 h-4 text-neutral-600 group-hover:text-neutral-400 transition-colors" />
+                  <ChevronRight className="w-4 h-4 text-sand-700 group-hover:text-copper-400 transition-colors" />
                 </div>
               </Link>
             ))}
@@ -280,13 +295,13 @@ export default function Dashboard() {
 
       {/* System Status Footer */}
       {runs.length > 0 && (
-        <div className="flex items-center justify-center space-x-3 pt-4 border-t border-neutral-800">
-          <div className="flex items-center space-x-1.5 text-xs text-neutral-500">
-            <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+        <div className="flex items-center justify-center space-x-3 pt-4 border-t border-surface-4/50">
+          <div className="flex items-center space-x-1.5 text-xs text-sand-600">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
             <span>All systems operational</span>
           </div>
-          <span className="text-neutral-700">•</span>
-          <div className="text-xs text-neutral-600">
+          <span className="text-sand-800">•</span>
+          <div className="text-xs text-sand-700">
             Updated {format(new Date(), 'HH:mm:ss')}
           </div>
         </div>

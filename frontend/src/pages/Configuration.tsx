@@ -47,12 +47,7 @@ export default function Configuration() {
   // Fetch all available rules
   const { data: rulesResponse, isLoading: rulesLoading, error: rulesError } = useQuery({
     queryKey: ['rules'],
-    queryFn: async () => {
-      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-      const response = await fetch(`${baseUrl}/api/config/rules`);
-      if (!response.ok) throw new Error('Failed to fetch rules');
-      return response.json();
-    },
+    queryFn: apiClient.getRules,
     retry: 1
   });
   const rules: Rule[] = Array.isArray(rulesResponse) ? rulesResponse : [];
@@ -60,19 +55,25 @@ export default function Configuration() {
   // Fetch project configuration
   const { data: config, isLoading: configLoading } = useQuery<ProjectConfig>({
     queryKey: ['project-config', selectedProjectId],
-    queryFn: async () => {
-      const response = await (apiClient as any).getProjectConfig(selectedProjectId);
-      return response;
-    },
+    queryFn: () => apiClient.getProjectConfig(selectedProjectId!),
     enabled: selectedProjectId !== null
   });
 
   // Update configuration mutation
   const updateConfigMutation = useMutation({
-    mutationFn: async (newConfig: Partial<ProjectConfig>) => {
-      const response = await (apiClient as any).updateProjectConfig(selectedProjectId, newConfig);
-      return response;
-    },
+    mutationFn: (newConfig: Partial<ProjectConfig>) =>
+      apiClient.updateProjectConfig(selectedProjectId!, newConfig),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project-config', selectedProjectId] });
+    }
+  });
+
+  // Toggle rule mutation
+  const toggleRuleMutation = useMutation({
+    mutationFn: ({ ruleId, enable }: { ruleId: string; enable: boolean }) =>
+      enable
+        ? apiClient.enableRule(selectedProjectId!, ruleId)
+        : apiClient.disableRule(selectedProjectId!, ruleId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project-config', selectedProjectId] });
     }
@@ -103,35 +104,35 @@ export default function Configuration() {
   const getSeverityColor = (severity: string) => {
     switch (severity) {
       case 'critical': return 'text-red-400 bg-red-500/10 border-red-500/20';
-      case 'high': return 'text-orange-400 bg-orange-500/10 border-orange-500/20';
-      case 'medium': return 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20';
-      default: return 'text-neutral-400 bg-neutral-800 border-neutral-700';
+      case 'high': return 'text-amber-400 bg-amber-500/10 border-amber-500/20';
+      case 'medium': return 'text-copper-400 bg-copper-500/10 border-copper-500/20';
+      default: return 'text-sand-400 bg-surface-3 border-surface-4';
     }
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-fade-in">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-neutral-100 mb-1">Settings</h1>
-          <p className="text-neutral-500 text-sm">
+          <h1 className="text-2xl font-bold text-sand-100 mb-1">Settings</h1>
+          <p className="text-sand-600 text-sm">
             Configure analysis rules and parameters for your repositories.
           </p>
         </div>
       </div>
 
       {/* Project Selector */}
-      <div className="card-premium p-6">
+      <div className="card p-6">
         <div className="flex items-center space-x-2 mb-4">
-          <Sliders className="w-5 h-5 text-neutral-400" />
-          <h2 className="text-base font-medium text-neutral-100">Select Repository</h2>
+          <Sliders className="w-5 h-5 text-copper-400" />
+          <h2 className="text-base font-semibold text-sand-100">Select Repository</h2>
         </div>
         
         <div className="relative">
           <select
             value={selectedProjectId || ''}
             onChange={(e) => setSelectedProjectId(Number(e.target.value) || null)}
-            className="w-full h-10 pl-3 pr-10 bg-neutral-950 border border-neutral-800 rounded-md text-neutral-200 text-sm focus:border-neutral-700 focus:outline-none transition-colors appearance-none cursor-pointer"
+            className="w-full h-11 pl-3 pr-10 bg-surface-1 border border-surface-4 rounded-xl text-sand-200 text-sm focus:border-copper-600 focus:outline-none focus:ring-1 focus:ring-copper-600 transition-colors appearance-none cursor-pointer"
           >
             <option value="">Choose a repository...</option>
             {projects.map(project => (
@@ -140,7 +141,7 @@ export default function Configuration() {
               </option>
             ))}
           </select>
-          <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-neutral-500">
+          <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-sand-600">
             <Filter className="w-4 h-4" />
           </div>
         </div>
@@ -150,13 +151,13 @@ export default function Configuration() {
         <div className="space-y-6">
           {/* Analysis Settings */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="card-premium p-5">
-              <h3 className="text-sm font-medium text-neutral-100 mb-4 flex items-center space-x-2">
-                <CheckCircle2 className="w-4 h-4 text-green-500" />
+            <div className="card p-5">
+              <h3 className="text-sm font-semibold text-sand-100 mb-4 flex items-center space-x-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                 <span>Thresholds</span>
               </h3>
               <div>
-                <label className="block text-xs text-neutral-500 mb-2">
+                <label className="block text-xs text-sand-600 mb-2">
                   Max findings per rule
                 </label>
                 <input
@@ -165,27 +166,27 @@ export default function Configuration() {
                   onChange={(e) => updateConfigMutation.mutate({ 
                     analysis_config: { ...config!.analysis_config, max_findings_per_rule: Number(e.target.value) } 
                   })}
-                  className="w-full h-9 px-3 bg-neutral-950 border border-neutral-800 rounded-md text-neutral-100 text-sm focus:border-neutral-700 focus:outline-none transition-colors"
+                  className="input"
                 />
               </div>
             </div>
 
-            <div className="card-premium p-5">
-              <h3 className="text-sm font-medium text-neutral-100 mb-4 flex items-center space-x-2">
-                <AlertCircle className="w-4 h-4 text-neutral-400" />
+            <div className="card p-5">
+              <h3 className="text-sm font-semibold text-sand-100 mb-4 flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4 text-sand-500" />
                 <span>Scope</span>
               </h3>
               <div>
-                <label className="block text-xs text-neutral-500 mb-2">
+                <label className="block text-xs text-sand-600 mb-2">
                   File extensions
                 </label>
                 <div className="flex flex-wrap gap-1.5">
                   {(config?.analysis_config.file_extensions || ['.py', '.js', '.ts']).map(ext => (
-                    <span key={ext} className="px-2 py-1 bg-neutral-800 text-neutral-300 border border-neutral-700 rounded text-xs font-mono">
+                    <span key={ext} className="px-2 py-1 bg-surface-3 text-sand-300 border border-surface-4 rounded-lg text-xs font-mono">
                       {ext}
                     </span>
                   ))}
-                  <button className="px-2 py-1 bg-neutral-900 border border-dashed border-neutral-700 text-neutral-500 rounded text-xs hover:text-neutral-300 hover:border-neutral-600 transition-colors">
+                  <button className="px-2 py-1 bg-surface-1 border border-dashed border-surface-4 text-sand-600 rounded-lg text-xs hover:text-sand-300 hover:border-copper-700 transition-colors">
                     + Add
                   </button>
                 </div>
@@ -194,28 +195,28 @@ export default function Configuration() {
           </div>
 
           {/* Rules Configuration */}
-          <div className="card-premium p-5">
+          <div className="card p-5">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-              <h2 className="text-base font-medium text-neutral-100 flex items-center space-x-2">
-                <ShieldAlert className="w-5 h-5 text-neutral-400" />
+              <h2 className="text-base font-semibold text-sand-100 flex items-center space-x-2">
+                <ShieldAlert className="w-5 h-5 text-copper-400" />
                 <span>Analysis Rules</span>
               </h2>
               
               <div className="flex items-center gap-3">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-sand-700" />
                   <input
                     type="text"
                     placeholder="Search rules..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-56 h-9 pl-9 pr-3 bg-neutral-950 border border-neutral-800 rounded-md text-sm text-neutral-100 focus:border-neutral-700 focus:outline-none transition-colors"
+                    className="input w-56 pl-9"
                   />
                 </div>
                 <select
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="h-9 px-3 bg-neutral-950 border border-neutral-800 rounded-md text-sm text-neutral-300 focus:border-neutral-700 focus:outline-none transition-colors cursor-pointer"
+                  className="h-11 px-3 bg-surface-1 border border-surface-4 rounded-xl text-sm text-sand-300 focus:border-copper-600 focus:outline-none focus:ring-1 focus:ring-copper-600 transition-colors cursor-pointer"
                 >
                   <option value="all">All Categories</option>
                   {categories.map(category => (
@@ -229,16 +230,16 @@ export default function Configuration() {
 
             <div className="space-y-3">
               {configLoading || rulesLoading ? (
-                <div className="text-center py-12 text-neutral-500 text-sm">
+                <div className="text-center py-12 text-sand-600 text-sm">
                   Loading rules...
                 </div>
               ) : rulesError ? (
-                <div className="text-center py-12 text-neutral-500 text-sm">
+                <div className="text-center py-12 text-sand-600 text-sm">
                   Unable to load rules. Make sure the backend is running.
                 </div>
               ) : filteredRules.length === 0 ? (
-                <div className="text-center py-12 bg-neutral-900/50 rounded-lg border border-dashed border-neutral-800">
-                  <p className="text-neutral-500 text-sm">No rules match your search.</p>
+                <div className="text-center py-12 bg-surface-1 rounded-xl border border-dashed border-surface-4">
+                  <p className="text-sand-600 text-sm">No rules match your search.</p>
                 </div>
               ) : (
                 filteredRules.map(rule => {
@@ -248,20 +249,21 @@ export default function Configuration() {
                   return (
                     <div
                       key={rule.rule_id}
-                      className={`p-4 rounded-lg border transition-colors ${
+                      className={`p-4 rounded-xl border transition-all duration-200 ${
                         enabled 
-                          ? 'bg-neutral-900/50 border-neutral-800 hover:border-neutral-700' 
-                          : 'bg-neutral-950 border-neutral-900 opacity-50'
+                          ? 'bg-surface-1 border-surface-4 hover:border-copper-800' 
+                          : 'bg-surface-0 border-surface-4/50 opacity-50'
                       }`}
                     >
                       <div className="flex items-start gap-4">
                         <button
-                          className={`mt-0.5 relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors ${
-                            enabled ? 'bg-green-600' : 'bg-neutral-700'
+                          onClick={() => toggleRuleMutation.mutate({ ruleId: rule.rule_id, enable: !enabled })}
+                          className={`mt-0.5 relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ${
+                            enabled ? 'bg-copper-600' : 'bg-surface-4'
                           }`}
                         >
                           <span
-                            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
                               enabled ? 'translate-x-4' : 'translate-x-0.5'
                             } mt-0.5`}
                           />
@@ -269,20 +271,23 @@ export default function Configuration() {
 
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <h3 className="text-sm font-medium text-neutral-100">{rule.name}</h3>
-                            <span className="text-xs text-neutral-600 bg-neutral-800 px-1.5 py-0.5 rounded">
+                            <h3 className="text-sm font-semibold text-sand-100">{rule.name}</h3>
+                            <span className="text-[10px] text-sand-600 bg-surface-3 border border-surface-4 px-1.5 py-0.5 rounded-md uppercase tracking-wider font-bold">
                               {rule.category.replace('_', ' ')}
                             </span>
                           </div>
-                          <p className="text-xs text-neutral-500 mb-2">{rule.description}</p>
-                          <code className="text-xs font-mono text-neutral-600">{rule.rule_id}</code>
+                          <p className="text-xs text-sand-500 mb-2">{rule.description}</p>
+                          <code className="text-xs font-mono text-sand-700">{rule.rule_id}</code>
                         </div>
 
                         <div className="shrink-0">
                           <select
                             value={severity}
                             disabled={!enabled}
-                            className={`px-2 py-1 text-xs rounded border focus:outline-none transition-colors cursor-pointer ${
+                            onChange={(e) => updateConfigMutation.mutate({
+                              severity_overrides: { ...config?.severity_overrides, [rule.rule_id]: e.target.value }
+                            })}
+                            className={`px-2 py-1 text-xs rounded-lg border focus:outline-none transition-colors cursor-pointer ${
                               getSeverityColor(severity)
                             } ${!enabled ? 'cursor-not-allowed opacity-50' : ''}`}
                           >
@@ -301,12 +306,12 @@ export default function Configuration() {
           </div>
         </div>
       ) : (
-        <div className="card-premium p-12 text-center">
-          <div className="w-12 h-12 bg-neutral-800 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Sliders className="w-6 h-6 text-neutral-500" />
+        <div className="card p-12 text-center">
+          <div className="w-14 h-14 bg-surface-3 rounded-2xl flex items-center justify-center mx-auto mb-5">
+            <Sliders className="w-7 h-7 text-sand-600" />
           </div>
-          <h3 className="text-lg font-semibold text-neutral-100 mb-2">Select a repository</h3>
-          <p className="text-neutral-500 text-sm max-w-sm mx-auto">
+          <h3 className="text-lg font-bold text-sand-100 mb-2">Select a repository</h3>
+          <p className="text-sand-500 text-sm max-w-sm mx-auto">
             Choose a repository from the dropdown above to configure its analysis settings.
           </p>
         </div>

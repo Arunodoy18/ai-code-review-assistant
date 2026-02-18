@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { GitPullRequest, Code2, GitBranch, Shield, Zap, Users, ArrowDown, ChevronRight } from 'lucide-react';
+import { Code2, Shield, Zap, Users, ArrowDown, ChevronRight, Sparkles, BarChart3, Brain, Eye } from 'lucide-react';
 
 export default function Landing() {
   const [showInfo, setShowInfo] = useState(false);
@@ -14,65 +14,100 @@ export default function Landing() {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-950">
+    <div className="min-h-screen bg-surface-0">
+      {/* Background Effects */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-hero-glow opacity-60" />
+        <div className="absolute top-1/4 right-0 w-96 h-96 bg-copper-500/[0.02] rounded-full blur-[120px]" />
+        <div className="absolute bottom-1/4 left-0 w-96 h-96 bg-sand-500/[0.02] rounded-full blur-[120px]" />
+      </div>
+
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-900">
-        <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="p-1.5 bg-neutral-900 rounded-lg border border-neutral-800">
-              <GitPullRequest className="w-5 h-5 text-neutral-400" />
-            </div>
-            <span className="text-sm font-semibold text-neutral-100">AI Code Review</span>
-          </div>
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-surface-0/70 backdrop-blur-xl border-b border-surface-4/50">
+        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
+            <div className="relative">
+              <div className="p-2 bg-surface-2 rounded-xl border border-surface-4">
+                <Eye className="w-5 h-5 text-copper-400" />
+              </div>
+              <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-copper-500 rounded-full animate-pulse-soft" />
+            </div>
+            <div>
+              <span className="text-[15px] font-bold text-sand-100 tracking-tight">CodeLens</span>
+              <span className="text-[15px] font-light text-sand-500 ml-1">AI</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
             <Link
               to="/login"
-              className="px-3 py-1.5 text-sm text-neutral-400 hover:text-neutral-200 transition-colors duration-200"
+              className="btn-ghost"
             >
               Sign in
             </Link>
             <Link
               to="/signup"
-              className="px-3 py-1.5 text-sm bg-neutral-800 hover:bg-neutral-700 text-neutral-200 rounded-md transition-colors duration-200"
+              className="btn-primary"
             >
-              Sign up
+              Get Started
             </Link>
           </div>
         </div>
       </nav>
 
       {/* Hero Section */}
-      <section className="min-h-screen flex flex-col items-center justify-center px-6 pt-14">
-        <div className="max-w-2xl mx-auto text-center animate-fade-in">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-neutral-900 rounded-2xl border border-neutral-800 mb-8">
-            <GitPullRequest className="w-8 h-8 text-neutral-400" />
+      <section className="relative min-h-screen flex flex-col items-center justify-center px-6 pt-16">
+        <div className="max-w-3xl mx-auto text-center">
+          {/* Status badge */}
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-surface-1 border border-surface-4 rounded-full mb-8 animate-fade-up" style={{ animationDelay: '0.1s' }}>
+            <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+            <span className="text-xs font-medium text-sand-400">Powered by Llama 3.3 70B via Groq</span>
           </div>
           
-          <h1 className="text-4xl md:text-5xl font-semibold text-neutral-100 tracking-tight mb-4">
-            Code review, automated
+          <h1 className="text-5xl md:text-7xl font-extrabold text-sand-50 tracking-tight mb-6 leading-[1.1] animate-fade-up" style={{ animationDelay: '0.2s' }}>
+            Code review<br />
+            <span className="bg-gradient-to-r from-copper-400 via-copper-300 to-sand-300 bg-clip-text text-transparent">
+              that thinks.
+            </span>
           </h1>
           
-          <p className="text-lg text-neutral-400 mb-10 max-w-md mx-auto leading-relaxed">
-            Get instant, intelligent feedback on every pull request. 
-            Built for teams who ship with confidence.
+          <p className="text-lg md:text-xl text-sand-500 mb-12 max-w-xl mx-auto leading-relaxed animate-fade-up" style={{ animationDelay: '0.3s' }}>
+            AI-powered pull request analysis with risk scoring, auto-fix generation, 
+            and plain-English summaries. Ship faster, ship safer.
           </p>
 
-          <button
-            onClick={scrollToInfo}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-amber-800 hover:bg-amber-700 text-neutral-100 font-medium rounded-lg transition-colors duration-200"
-          >
-            Get Started
-            <ChevronRight className="w-4 h-4" />
-          </button>
-
-          <div className="mt-16 animate-pulse-subtle">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-up" style={{ animationDelay: '0.4s' }}>
+            <Link
+              to="/signup"
+              className="btn-primary text-base px-8 py-3.5 flex items-center gap-2"
+            >
+              Start Reviewing
+              <ChevronRight className="w-4 h-4" />
+            </Link>
             <button
               onClick={scrollToInfo}
-              className="text-neutral-600 hover:text-neutral-400 transition-colors duration-200"
-              aria-label="Learn more"
+              className="btn-ghost text-base px-6 py-3 flex items-center gap-2"
             >
-              <ArrowDown className="w-5 h-5" />
+              See how it works
+              <ArrowDown className="w-4 h-4" />
             </button>
+          </div>
+        </div>
+
+        {/* Floating metrics */}
+        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-8 text-center animate-fade-up" style={{ animationDelay: '0.6s' }}>
+          <div>
+            <div className="text-2xl font-bold text-sand-100">0→100</div>
+            <div className="text-[11px] font-medium text-sand-600 uppercase tracking-widest mt-1">Risk Score</div>
+          </div>
+          <div className="w-px h-10 bg-surface-4" />
+          <div>
+            <div className="text-2xl font-bold text-sand-100">&lt;30s</div>
+            <div className="text-[11px] font-medium text-sand-600 uppercase tracking-widest mt-1">Analysis</div>
+          </div>
+          <div className="w-px h-10 bg-surface-4" />
+          <div>
+            <div className="text-2xl font-bold text-sand-100">1-Click</div>
+            <div className="text-[11px] font-medium text-sand-600 uppercase tracking-widest mt-1">Auto Fix</div>
           </div>
         </div>
       </section>
@@ -80,104 +115,123 @@ export default function Landing() {
       {/* Info Section */}
       <section
         ref={infoRef}
-        className={`py-24 px-6 transition-opacity duration-300 ${showInfo ? 'opacity-100' : 'opacity-0'}`}
+        className={`relative py-32 px-6 transition-all duration-700 ${showInfo ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
       >
-        <div className="max-w-4xl mx-auto">
-          {/* What it does */}
-          <div className="mb-20">
-            <h2 className="text-2xl font-semibold text-neutral-100 mb-4">What it does</h2>
-            <p className="text-neutral-400 leading-relaxed max-w-2xl">
-              AI Code Review analyzes your pull requests automatically, identifying bugs, 
-              security issues, and code quality concerns before they reach production. 
-              It integrates directly with your GitHub workflow—no context switching required.
+        <div className="max-w-5xl mx-auto">
+          {/* Section heading */}
+          <div className="text-center mb-20">
+            <span className="text-xs font-bold text-copper-500 uppercase tracking-[0.2em] mb-4 block">What sets us apart</span>
+            <h2 className="text-3xl md:text-4xl font-bold text-sand-100 mb-4">
+              Features that don't exist<br />anywhere else.
+            </h2>
+            <p className="text-sand-500 max-w-lg mx-auto">
+              Not just another linter. CodeLens AI understands context, calculates risk, 
+              generates fixes, and learns from your team's decisions.
             </p>
           </div>
 
-          {/* Features */}
-          <div className="grid md:grid-cols-3 gap-6 mb-20">
+          {/* Feature Cards — Bento Grid */}
+          <div className="grid md:grid-cols-2 gap-5 mb-24">
+            <BigFeatureCard
+              icon={BarChart3}
+              number="01"
+              title="PR Risk Score"
+              description="Every pull request gets a 0-100 risk score combining code complexity, blast radius, sensitive file detection, and AI-powered contextual assessment. Know at a glance if a PR needs extra eyes."
+              highlight="critical"
+            />
+            <BigFeatureCard
+              icon={Sparkles}
+              number="02"
+              title="AI Auto-Fix"
+              description="Get one-click AI-generated code patches for every finding. Real unified diffs you can copy and apply directly — not just suggestions, actual working fixes."
+              highlight="copper"
+            />
+            <BigFeatureCard
+              icon={Brain}
+              number="03"
+              title="Learning System"
+              description="Dismiss a false positive and CodeLens learns. It remembers patterns per-project, auto-suppressing similar findings in future runs. It gets smarter the more you use it."
+              highlight="emerald"
+            />
+            <BigFeatureCard
+              icon={Users}
+              number="04"
+              title="Plain English Summaries"
+              description="AI-generated summaries explain what each PR does, what the risks are, and whether it's safe to merge — written for PMs and stakeholders, not just developers."
+              highlight="sand"
+            />
+          </div>
+
+          {/* Core capabilities */}
+          <div className="grid md:grid-cols-3 gap-5 mb-24">
             <FeatureCard
               icon={Code2}
               title="Deep Analysis"
-              description="Understands your codebase context to provide relevant, actionable feedback."
+              description="Understands your codebase context. Finds bugs, security issues, and performance problems that linters miss."
             />
             <FeatureCard
               icon={Shield}
               title="Security First"
-              description="Catches vulnerabilities and security anti-patterns before they ship."
+              description="Detects vulnerabilities, auth bypasses, TOCTOU attacks, race conditions, and injection flaws."
             />
             <FeatureCard
               icon={Zap}
-              title="Fast Feedback"
-              description="Reviews complete within minutes, not hours. Keep your flow state."
+              title="Groq-Fast"
+              description="Powered by Llama 3.3 70B on Groq's LPU. Full PR analysis in seconds, not minutes."
             />
           </div>
 
-          {/* Who it's for */}
-          <div className="mb-20">
-            <h2 className="text-2xl font-semibold text-neutral-100 mb-4">Built for developers</h2>
-            <div className="grid md:grid-cols-2 gap-8">
-              <div className="flex gap-4">
-                <div className="flex-shrink-0 w-10 h-10 bg-neutral-900 rounded-lg border border-neutral-800 flex items-center justify-center">
-                  <GitBranch className="w-5 h-5 text-neutral-500" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-neutral-200 mb-1">Development teams</h3>
-                  <p className="text-sm text-neutral-500">
-                    Ship faster with automated first-pass reviews. Free up senior engineers for architecture decisions.
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-4">
-                <div className="flex-shrink-0 w-10 h-10 bg-neutral-900 rounded-lg border border-neutral-800 flex items-center justify-center">
-                  <Users className="w-5 h-5 text-neutral-500" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-neutral-200 mb-1">Open source maintainers</h3>
-                  <p className="text-sm text-neutral-500">
-                    Scale your review capacity. Maintain quality standards across hundreds of contributions.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* How it works */}
-          <div className="mb-20">
-            <h2 className="text-2xl font-semibold text-neutral-100 mb-6">How it works</h2>
-            <div className="space-y-4">
-              <Step number={1} title="Connect your repository" description="Link your GitHub repos in one click. We only request the permissions we need." />
-              <Step number={2} title="Configure your rules" description="Set severity levels, focus areas, and custom patterns that match your team's standards." />
-              <Step number={3} title="Review automatically" description="Every PR gets analyzed. Comments appear inline, just like a human reviewer." />
+          <div className="mb-24">
+            <div className="text-center mb-12">
+              <span className="text-xs font-bold text-copper-500 uppercase tracking-[0.2em] mb-4 block">Setup</span>
+              <h2 className="text-3xl font-bold text-sand-100">Three steps. Five minutes.</h2>
+            </div>
+            <div className="grid md:grid-cols-3 gap-6">
+              <Step number={1} title="Connect your repo" description="Install the GitHub App on your repositories. We only request the permissions we need." />
+              <Step number={2} title="Configure rules" description="Set severity levels, focus areas, and custom patterns that match your team's standards." />
+              <Step number={3} title="Reviews run automatically" description="Every PR gets full analysis. Findings, risk scores, auto-fixes, and summaries appear instantly." />
             </div>
           </div>
 
           {/* CTA */}
-          <div className="text-center py-12 border-t border-neutral-900">
-            <h2 className="text-xl font-semibold text-neutral-100 mb-3">Ready to start?</h2>
-            <p className="text-neutral-500 mb-6">Create an account or sign in to continue.</p>
-            <div className="flex items-center justify-center gap-3">
-              <Link
-                to="/signup"
-                className="px-5 py-2.5 bg-amber-800 hover:bg-amber-700 text-neutral-100 font-medium text-sm rounded-lg transition-colors duration-200"
-              >
-                Create account
-              </Link>
-              <Link
-                to="/login"
-                className="px-5 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-medium text-sm rounded-lg transition-colors duration-200"
-              >
-                Sign in
-              </Link>
+          <div className="relative overflow-hidden rounded-2xl border border-surface-4 bg-surface-1 p-12 md:p-16 text-center">
+            <div className="absolute inset-0 bg-hero-glow opacity-40" />
+            <div className="relative z-10">
+              <h2 className="text-3xl md:text-4xl font-bold text-sand-100 mb-4">
+                Ready to ship with confidence?
+              </h2>
+              <p className="text-sand-500 mb-8 max-w-md mx-auto">
+                Create an account and connect your first repository in under 5 minutes.
+              </p>
+              <div className="flex items-center justify-center gap-4">
+                <Link
+                  to="/signup"
+                  className="btn-primary text-base px-8 py-3.5"
+                >
+                  Create free account
+                </Link>
+                <Link
+                  to="/login"
+                  className="btn-secondary text-base px-6 py-3"
+                >
+                  Sign in
+                </Link>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="py-8 px-6 border-t border-neutral-900">
-        <div className="max-w-4xl mx-auto text-center">
-          <p className="text-xs text-neutral-600">
-            AI Code Review Assistant
+      <footer className="py-10 px-6 border-t border-surface-4/50">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Eye className="w-4 h-4 text-sand-700" />
+            <span className="text-sm text-sand-700">CodeLens AI</span>
+          </div>
+          <p className="text-xs text-sand-800">
+            &copy; 2026 All rights reserved.
           </p>
         </div>
       </footer>
@@ -185,28 +239,48 @@ export default function Landing() {
   );
 }
 
+function BigFeatureCard({ icon: Icon, number, title, description, highlight }: { 
+  icon: typeof Code2; number: string; title: string; description: string; highlight: string 
+}) {
+  const accentColor = highlight === 'critical' ? 'text-red-400' :
+                      highlight === 'copper' ? 'text-copper-400' :
+                      highlight === 'emerald' ? 'text-emerald-400' : 'text-sand-400';
+  const accentBg = highlight === 'critical' ? 'bg-red-500/10 border-red-500/20' :
+                   highlight === 'copper' ? 'bg-copper-500/10 border-copper-500/20' :
+                   highlight === 'emerald' ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-sand-500/10 border-sand-500/20';
+  
+  return (
+    <div className="group relative card p-8 overflow-hidden">
+      <div className="absolute top-6 right-6 text-[64px] font-black text-surface-3/60 leading-none select-none">{number}</div>
+      <div className={`relative z-10 w-12 h-12 ${accentBg} border rounded-xl flex items-center justify-center mb-5`}>
+        <Icon className={`w-6 h-6 ${accentColor}`} />
+      </div>
+      <h3 className="relative z-10 text-xl font-bold text-sand-100 mb-3">{title}</h3>
+      <p className="relative z-10 text-sm text-sand-500 leading-relaxed">{description}</p>
+    </div>
+  );
+}
+
 function FeatureCard({ icon: Icon, title, description }: { icon: typeof Code2; title: string; description: string }) {
   return (
-    <div className="p-5 bg-neutral-900/50 border border-neutral-800 rounded-lg">
-      <div className="w-9 h-9 bg-neutral-800 rounded-lg flex items-center justify-center mb-3">
-        <Icon className="w-4 h-4 text-neutral-400" />
+    <div className="card p-6">
+      <div className="w-10 h-10 bg-surface-2 border border-surface-4 rounded-xl flex items-center justify-center mb-4">
+        <Icon className="w-5 h-5 text-sand-400" />
       </div>
-      <h3 className="text-sm font-medium text-neutral-200 mb-1.5">{title}</h3>
-      <p className="text-sm text-neutral-500 leading-relaxed">{description}</p>
+      <h3 className="text-sm font-semibold text-sand-100 mb-2">{title}</h3>
+      <p className="text-sm text-sand-600 leading-relaxed">{description}</p>
     </div>
   );
 }
 
 function Step({ number, title, description }: { number: number; title: string; description: string }) {
   return (
-    <div className="flex gap-4">
-      <div className="flex-shrink-0 w-7 h-7 bg-amber-900/30 border border-amber-800/50 rounded-full flex items-center justify-center">
-        <span className="text-xs font-medium text-amber-600">{number}</span>
+    <div className="text-center">
+      <div className="w-10 h-10 bg-copper-500/10 border border-copper-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+        <span className="text-sm font-bold text-copper-400">{number}</span>
       </div>
-      <div>
-        <h3 className="text-sm font-medium text-neutral-200">{title}</h3>
-        <p className="text-sm text-neutral-500">{description}</p>
-      </div>
+      <h3 className="text-sm font-semibold text-sand-100 mb-2">{title}</h3>
+      <p className="text-sm text-sand-600">{description}</p>
     </div>
   );
 }

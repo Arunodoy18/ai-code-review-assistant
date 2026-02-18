@@ -1,7 +1,9 @@
-# Netlify Configuration for AI Code Review Frontend
-# Build settings (base directory is set in root netlify.toml)
+# Root-level Netlify configuration
+# Netlify only reads netlify.toml from the repository root, so keep the full
+# build/publish + SPA redirect rules here.
 
 [build]
+  base = "frontend"
   publish = "dist"
   command = "npm run build"
 

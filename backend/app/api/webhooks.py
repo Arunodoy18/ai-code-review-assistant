@@ -12,12 +12,18 @@ import hashlib
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+# In-memory set of processed delivery IDs for idempotency
+# In production, use Redis or a DB table for this
+_processed_deliveries: set[str] = set()
+_MAX_DELIVERY_CACHE = 10000
+
 
 @router.post("/github")
 async def github_webhook(
     request: Request,
     x_hub_signature_256: str = Header(None),
     x_github_event: str = Header(None),
+    x_github_delivery: str = Header(None),
     db: Session = Depends(get_db)
 ):
     """
@@ -26,6 +32,16 @@ async def github_webhook(
     if not settings.enable_github_webhooks or not settings.enable_github_integration:
         logger.info("GitHub webhook received but integration is disabled in local configuration")
         raise HTTPException(status_code=503, detail="GitHub webhooks are disabled for this environment")
+
+    # Idempotency: reject re-delivered webhooks
+    if x_github_delivery:
+        if x_github_delivery in _processed_deliveries:
+            logger.info(f"Duplicate webhook delivery {x_github_delivery}, skipping")
+            return {"message": "Already processed", "delivery_id": x_github_delivery}
+        # Prevent memory leak: cap size
+        if len(_processed_deliveries) >= _MAX_DELIVERY_CACHE:
+            _processed_deliveries.clear()
+        _processed_deliveries.add(x_github_delivery)
 
     try:
         body = await request.body()

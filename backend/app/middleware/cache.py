@@ -16,12 +16,10 @@ class ResponseCacheMiddleware(BaseHTTPMiddleware):
     
     # Routes to cache and their TTL in seconds
     CACHE_CONFIG = {
-        "/api/runs": 10,  # 10 seconds for runs list (frequently updated)
-        "/api/runs/": 60,  # 1 minute for individual run details
-        "/api/projects": 300,  # 5 minutes for projects list
-        "/api/projects/": 300,  # 5 minutes for individual projects
-        "/api/config/rules": 600,  # 10 minutes for rules (rarely change)
-        "/api/config/projects/": 120,  # 2 minutes for project config
+        "/api/analysis/runs": 10,       # 10 seconds for runs list (frequently updated)
+        "/api/projects": 300,           # 5 minutes for projects list
+        "/api/config/rules": 600,       # 10 minutes for rules (rarely change)
+        "/api/config/projects/": 120,   # 2 minutes for project config
     }
     
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
@@ -81,7 +79,7 @@ class ResponseCacheMiddleware(BaseHTTPMiddleware):
     def _get_cache_ttl(self, path: str) -> int:
         """Get cache TTL for a given path"""
         for route_pattern, ttl in self.CACHE_CONFIG.items():
-            if path.startswith(f"/api{route_pattern}"):
+            if path.startswith(route_pattern):
                 return ttl
         return None
     

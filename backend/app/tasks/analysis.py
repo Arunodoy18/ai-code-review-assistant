@@ -71,6 +71,19 @@ def analyze_pr_task(self, run_id: int):
         
         # Save findings to database
         for finding_data in deduplicated_findings:
+            # Generate auto-fix for critical/high findings
+            auto_fix = ""
+            if finding_data["severity"] in (FindingSeverity.CRITICAL, FindingSeverity.HIGH):
+                try:
+                    file_patch = next(
+                        (f.get("patch", "") for f in diff_data if f["filename"] == finding_data["file_path"]),
+                        ""
+                    )
+                    if file_patch:
+                        auto_fix = llm_service.generate_auto_fix(finding_data, file_patch)
+                except Exception as e:
+                    logger.warning(f"Auto-fix generation failed for {finding_data.get('title', '?')}: {e}")
+            
             finding = Finding(
                 run_id=run.id,
                 file_path=finding_data["file_path"],
@@ -84,9 +97,33 @@ def analyze_pr_task(self, run_id: int):
                 suggestion=finding_data.get("suggestion"),
                 code_snippet=finding_data.get("code_snippet"),
                 is_ai_generated=finding_data.get("is_ai_generated", 0),
+                auto_fix_code=auto_fix if auto_fix else None,
                 finding_metadata=finding_data.get("finding_metadata", {})
             )
             db.add(finding)
+        
+        # Compute PR risk score
+        logger.info("Computing PR risk score...")
+        try:
+            risk_result = llm_service.compute_risk_score(diff_data, deduplicated_findings)
+            run.risk_score = risk_result["score"]
+            run.risk_breakdown = risk_result
+        except Exception as e:
+            logger.warning(f"Risk score computation failed: {e}")
+            run.risk_score = None
+        
+        # Generate PR summary for non-technical stakeholders
+        logger.info("Generating PR summary...")
+        try:
+            run_meta = {
+                "files_analyzed": len(diff_data),
+                "findings_count": len(deduplicated_findings),
+                "ai_findings": len(ai_findings),
+            }
+            pr_summary = llm_service.generate_pr_summary(diff_data, deduplicated_findings, run_meta)
+            run.pr_summary = pr_summary if pr_summary else None
+        except Exception as e:
+            logger.warning(f"PR summary generation failed: {e}")
         
         # Update run metadata
         run.run_metadata["files_analyzed"] = len(diff_data)

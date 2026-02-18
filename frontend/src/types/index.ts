@@ -21,6 +21,20 @@ export interface AnalysisRun {
   started_at: string
   completed_at?: string
   error_message?: string
+  risk_score?: number | null
+  risk_breakdown?: {
+    score?: number
+    label?: string
+    explanation?: string
+    breakdown?: {
+      size_impact?: number
+      severity_impact?: number
+      blast_radius?: number
+      complexity?: number
+      ai_adjustment?: number
+    }
+  }
+  pr_summary?: string | null
   run_metadata?: {
     files_analyzed?: number
     findings_count?: number
@@ -45,6 +59,8 @@ export interface Finding {
   code_snippet?: string
   is_ai_generated: number
   is_resolved: number
+  is_dismissed?: number
+  auto_fix_code?: string | null
   created_at: string
   finding_metadata?: Record<string, any>
 }

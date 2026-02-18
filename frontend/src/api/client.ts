@@ -1,16 +1,21 @@
 /**
- * API client for local development.
- * Simple fetch wrapper with no retry logic or production-specific behavior.
- * Backend failures will fail gracefully without blocking the UI.
+ * API client with JWT authentication support.
+ * Automatically attaches Bearer token from localStorage if available.
  */
 
 const getBaseUrl = (): string => {
-  // Allow override via Vite env variable if needed
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
-  // Default: localhost for local development
   return 'http://localhost:8000';
+};
+
+const getAuthHeaders = (): Record<string, string> => {
+  const token = localStorage.getItem('auth_token');
+  if (token && token !== 'demo_session') {
+    return { 'Authorization': `Bearer ${token}` };
+  }
+  return {};
 };
 
 interface ApiError extends Error {
@@ -38,9 +43,9 @@ const fetchWithErrorHandling = async (
   try {
     const response = await fetch(url, {
       ...options,
-      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
+        ...getAuthHeaders(),
         ...options.headers,
       },
     });
@@ -161,6 +166,70 @@ export const api = {
   resolveFinding: async (findingId: number) => {
     const url = `${getBaseUrl()}/api/analysis/findings/${findingId}/resolve`;
     const response = await fetchWithErrorHandling(url, { method: 'PATCH' });
+    return response.json();
+  },
+
+  dismissFinding: async (findingId: number) => {
+    const url = `${getBaseUrl()}/api/analysis/findings/${findingId}/dismiss`;
+    const response = await fetchWithErrorHandling(url, { method: 'PATCH' });
+    return response.json();
+  },
+
+  getAutoFix: async (findingId: number) => {
+    const url = `${getBaseUrl()}/api/analysis/findings/${findingId}/auto-fix`;
+    const response = await fetchWithErrorHandling(url, { method: 'GET' });
+    return response.json();
+  },
+
+  generateFix: async (findingId: number) => {
+    const url = `${getBaseUrl()}/api/analysis/findings/${findingId}/generate-fix`;
+    const response = await fetchWithErrorHandling(url, { method: 'POST' });
+    return response.json();
+  },
+
+  getRiskScore: async (runId: number) => {
+    const url = `${getBaseUrl()}/api/analysis/runs/${runId}/risk-score`;
+    const response = await fetchWithErrorHandling(url, { method: 'GET' });
+    return response.json();
+  },
+
+  getPrSummary: async (runId: number) => {
+    const url = `${getBaseUrl()}/api/analysis/runs/${runId}/summary`;
+    const response = await fetchWithErrorHandling(url, { method: 'GET' });
+    return response.json();
+  },
+
+  // Configuration API methods
+  getRules: async () => {
+    const url = `${getBaseUrl()}/api/config/rules`;
+    const response = await fetchWithErrorHandling(url, { method: 'GET' });
+    return response.json();
+  },
+
+  getProjectConfig: async (projectId: number) => {
+    const url = `${getBaseUrl()}/api/config/projects/${projectId}`;
+    const response = await fetchWithErrorHandling(url, { method: 'GET' });
+    return response.json();
+  },
+
+  updateProjectConfig: async (projectId: number, config: any) => {
+    const url = `${getBaseUrl()}/api/config/projects/${projectId}`;
+    const response = await fetchWithErrorHandling(url, {
+      method: 'PUT',
+      body: JSON.stringify(config),
+    });
+    return response.json();
+  },
+
+  enableRule: async (projectId: number, ruleId: string) => {
+    const url = `${getBaseUrl()}/api/config/projects/${projectId}/rules/${ruleId}/enable`;
+    const response = await fetchWithErrorHandling(url, { method: 'POST' });
+    return response.json();
+  },
+
+  disableRule: async (projectId: number, ruleId: string) => {
+    const url = `${getBaseUrl()}/api/config/projects/${projectId}/rules/${ruleId}/disable`;
+    const response = await fetchWithErrorHandling(url, { method: 'POST' });
     return response.json();
   },
 };

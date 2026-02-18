@@ -1,9 +1,12 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 from app.config import settings
 from app.database import engine, Base
-from app.api import webhooks, analysis, projects, health, config
+from app.api import webhooks, analysis, projects, health, config, auth
 from app.middleware.cache import ResponseCacheMiddleware
 from app.logging_config import setup_logging
 import sentry_sdk
@@ -37,6 +40,11 @@ app = FastAPI(
     description="Intelligent code review platform using ML to analyze PRs",
     version="1.0.0"
 )
+
+# Rate limiting
+limiter = Limiter(key_func=get_remote_address, default_limits=[f"{settings.rate_limit_per_minute}/minute"])
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS - Simple localhost configuration for development
 # Production deployments should configure FRONTEND_URL environment variable
@@ -88,6 +96,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 
 # Include routers
+app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
 app.include_router(health.router, prefix="/api", tags=["health"])
 app.include_router(webhooks.router, prefix="/api/webhooks", tags=["webhooks"])
 app.include_router(projects.router, prefix="/api/projects", tags=["projects"])

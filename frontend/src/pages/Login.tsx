@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { GitPullRequest, Mail, Lock, AlertCircle, Loader2 } from 'lucide-react';
+import { Eye, Mail, Lock, AlertCircle, Loader2 } from 'lucide-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -38,55 +38,60 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-950 flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
+    <div className="min-h-screen bg-surface-0 flex items-center justify-center px-4">
+      {/* Background glow */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-hero-glow opacity-40" />
+      </div>
+
+      <div className="relative w-full max-w-sm animate-fade-up">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 bg-neutral-900 rounded-xl border border-neutral-800 mb-4">
-            <GitPullRequest className="w-6 h-6 text-neutral-400" />
+          <div className="inline-flex items-center justify-center w-12 h-12 bg-surface-2 rounded-xl border border-surface-4 mb-4">
+            <Eye className="w-6 h-6 text-copper-400" />
           </div>
-          <h1 className="text-xl font-semibold text-neutral-100">Welcome back</h1>
-          <p className="text-sm text-neutral-500 mt-1">Sign in to your account</p>
+          <h1 className="text-xl font-bold text-sand-100">Welcome back</h1>
+          <p className="text-sm text-sand-600 mt-1">Sign in to your account</p>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
+            <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-neutral-400 mb-1.5">
+            <label htmlFor="email" className="block text-sm font-medium text-sand-400 mb-1.5">
               Email
             </label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-sand-700" />
               <input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full h-10 pl-10 pr-4 bg-neutral-900 border border-neutral-800 rounded-lg text-neutral-100 text-sm placeholder:text-neutral-600 focus:outline-none focus:border-neutral-700 focus:ring-1 focus:ring-neutral-700 transition-colors"
+                className="input pl-10"
                 placeholder="you@example.com"
               />
             </div>
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-neutral-400 mb-1.5">
+            <label htmlFor="password" className="block text-sm font-medium text-sand-400 mb-1.5">
               Password
             </label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-sand-700" />
               <input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full h-10 pl-10 pr-4 bg-neutral-900 border border-neutral-800 rounded-lg text-neutral-100 text-sm placeholder:text-neutral-600 focus:outline-none focus:border-neutral-700 focus:ring-1 focus:ring-neutral-700 transition-colors"
+                className="input pl-10"
                 placeholder="••••••••"
               />
             </div>
@@ -95,7 +100,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full h-10 bg-neutral-100 hover:bg-white text-neutral-900 font-medium text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="btn-primary w-full h-11 flex items-center justify-center gap-2"
           >
             {isLoading ? (
               <>
@@ -108,9 +113,9 @@ export default function Login() {
           </button>
         </form>
 
-        <p className="text-center text-sm text-neutral-500 mt-6">
+        <p className="text-center text-sm text-sand-600 mt-6">
           Don't have an account?{' '}
-          <Link to="/signup" className="text-neutral-300 hover:text-white transition-colors">
+          <Link to="/signup" className="text-copper-400 hover:text-copper-300 transition-colors font-medium">
             Sign up
           </Link>
         </p>

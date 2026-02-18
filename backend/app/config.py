@@ -34,7 +34,9 @@ class Settings(BaseSettings):
     openai_api_key: Optional[str] = Field(default=os.getenv("OPENAI_API_KEY"))
     anthropic_api_key: Optional[str] = Field(default=os.getenv("ANTHROPIC_API_KEY"))
     google_api_key: Optional[str] = Field(default=os.getenv("GOOGLE_API_KEY"))
-    llm_provider: str = Field(default=os.getenv("LLM_PROVIDER", "openai"))
+    groq_api_key: Optional[str] = Field(default=os.getenv("GROQ_API_KEY"))
+    groq_model: str = Field(default=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"))
+    llm_provider: str = Field(default=os.getenv("LLM_PROVIDER", "groq"))
     
     # Redis
     redis_url: str = Field(default=os.getenv("REDIS_URL", "redis://localhost:6379/0"))

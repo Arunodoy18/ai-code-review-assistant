@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, JSON, Enum as SQLEnum
+from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, JSON, Enum as SQLEnum, Boolean, Float
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
@@ -29,6 +29,21 @@ class FindingCategory(str, enum.Enum):
     DOCUMENTATION = "documentation"
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, nullable=False, index=True)
+    name = Column(String, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    is_active = Column(Boolean, default=True)
+    is_admin = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    projects = relationship("Project", back_populates="owner")
+
+
 class Project(Base):
     __tablename__ = "projects"
 
@@ -36,10 +51,13 @@ class Project(Base):
     name = Column(String, nullable=False, index=True)
     github_repo_full_name = Column(String, unique=True, nullable=False, index=True)  # owner/repo
     github_installation_id = Column(Integer, nullable=False, index=True)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     config = Column(JSON, default={})  # Rules, thresholds, etc.
+    dismissed_patterns = Column(JSON, default=[])  # Learned false-positive patterns
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    owner = relationship("User", back_populates="projects")
     runs = relationship("AnalysisRun", back_populates="project")
 
 
@@ -59,6 +77,9 @@ class AnalysisRun(Base):
     completed_at = Column(DateTime, nullable=True, index=True)
     error_message = Column(Text, nullable=True)
     run_metadata = Column(JSON, default={})  # Changed files count, lines analyzed, etc.
+    risk_score = Column(Float, nullable=True)  # 0-100 PR risk score
+    risk_breakdown = Column(JSON, default={})  # Detailed risk breakdown
+    pr_summary = Column(Text, nullable=True)  # Natural language PR summary for non-tech stakeholders
 
     project = relationship("Project", back_populates="runs")
     findings = relationship("Finding", back_populates="run", cascade="all, delete-orphan")
@@ -81,6 +102,8 @@ class Finding(Base):
     code_snippet = Column(Text, nullable=True)
     is_ai_generated = Column(Integer, default=0, index=True)  # 0=rule-based, 1=AI
     is_resolved = Column(Integer, default=0, index=True)
+    is_dismissed = Column(Integer, default=0, index=True)  # Learning system: user dismissed this finding
+    auto_fix_code = Column(Text, nullable=True)  # AI-generated fix patch
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     finding_metadata = Column(JSON, default={})  # Additional context
 
