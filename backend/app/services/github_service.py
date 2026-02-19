@@ -89,8 +89,17 @@ class GitHubService:
             self._github_client = Github(token)
         return self._github_client
     
-    def get_pr_diff(self, repo_full_name: str, pr_number: int) -> str:
-        """Get PR diff"""
+    def get_pr_diff(self, repo_full_name: str, pr_number: int, include_full_content: bool = True) -> str:
+        """Get PR diff with optional full file content.
+        
+        Args:
+            repo_full_name: Repository full name (owner/repo)
+            pr_number: Pull request number
+            include_full_content: If True, fetch full file content for each changed file
+        
+        Returns:
+            List of file diffs with optional full content
+        """
         repo = self.client.get_repo(repo_full_name)
         pr = repo.get_pull(pr_number)
         
@@ -99,14 +108,27 @@ class GitHubService:
         diff_data = []
         
         for file in files:
-            diff_data.append({
+            file_info = {
                 "filename": file.filename,
                 "status": file.status,
                 "additions": file.additions,
                 "deletions": file.deletions,
                 "changes": file.changes,
                 "patch": file.patch if hasattr(file, 'patch') else None
-            })
+            }
+            
+            # Optionally fetch full file content for better context
+            if include_full_content and file.status != "removed":
+                try:
+                    full_content = self.get_file_content(repo_full_name, file.filename, pr.head.sha)
+                    file_info["full_content"] = full_content
+                    file_info["language"] = self._detect_language(file.filename)
+                except Exception as e:
+                    logger.warning(f"Could not fetch full content for {file.filename}: {e}")
+                    file_info["full_content"] = None
+                    file_info["language"] = self._detect_language(file.filename)
+            
+            diff_data.append(file_info)
         
         return diff_data
     
@@ -125,6 +147,72 @@ class GitHubService:
             }
             for f in files
         ]
+    
+    def get_file_content(self, repo_full_name: str, file_path: str, ref: str = "main") -> str:
+        """Fetch the full content of a file from a repository.
+        
+        Args:
+            repo_full_name: Repository full name (owner/repo)
+            file_path: Path to the file in the repository
+            ref: Git reference (branch, tag, or commit SHA)
+        
+        Returns:
+            File content as string
+        """
+        try:
+            repo = self.client.get_repo(repo_full_name)
+            file_content = repo.get_contents(file_path, ref=ref)
+            
+            if isinstance(file_content, list):
+                # It's a directory, not a file
+                return ""
+                
+            # Decode base64 content
+            import base64
+            content = base64.b64decode(file_content.content).decode("utf-8")
+            return content
+        except Exception as e:
+            logger.error(f"Failed to fetch {file_path} at {ref}: {e}")
+            return ""
+
+    def _detect_language(self, filename: str) -> str:
+        """Detect programming language from filename extension."""
+        ext_map = {
+            ".py": "python",
+            ".js": "javascript",
+            ".jsx": "javascript",
+            ".ts": "typescript",
+            ".tsx": "typescript",
+            ".java": "java",
+            ".cpp": "cpp",
+            ".c": "c",
+            ".h": "c",
+            ".hpp": "cpp",
+            ".go": "go",
+            ".rs": "rust",
+            ".rb": "ruby",
+            ".php": "php",
+            ".cs": "csharp",
+            ".swift": "swift",
+            ".kt": "kotlin",
+            ".scala": "scala",
+            ".sql": "sql",
+            ".sh": "bash",
+            ".yml": "yaml",
+            ".yaml": "yaml",
+            ".json": "json",
+            ".xml": "xml",
+            ".html": "html",
+            ".css": "css",
+            ".scss": "scss",
+            ".md": "markdown",
+        }
+        
+        for ext, lang in ext_map.items():
+            if filename.endswith(ext):
+                return lang
+        
+        return "unknown"
     
     def post_pr_comment(self, repo_full_name: str, pr_number: int, body: str):
         """Post a comment on PR"""

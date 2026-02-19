@@ -1,5 +1,6 @@
 from app.config import settings
 from app.models import FindingSeverity, FindingCategory
+from app.services.ast_analyzer import get_ast_analyzer
 import openai
 import logging
 import json
@@ -69,19 +70,180 @@ class LLMService:
             except Exception as e:
                 logger.error(f"LLM analysis failed for {file_data['filename']}: {e}")
         
+        # Add cross-file impact analysis if multiple files changed
+        if len(files_to_analyze) > 1:
+            try:
+                cross_file_findings = self._analyze_cross_file_impact(files_to_analyze)
+                findings.extend(cross_file_findings)
+            except Exception as e:
+                logger.error(f"Cross-file analysis failed: {e}")
+        
         return findings
     
+    def _analyze_cross_file_impact(self, files_data: list) -> list:
+        """Analyze impact of changes across multiple files.
+        
+        Detects:
+        - Breaking interface changes
+        - Cross-file dependency issues
+        - Inconsistent changes across related files
+        - Missing corresponding updates
+        """
+        if len(files_data) < 2:
+            return []
+        
+        # Build cross-file context
+        ast_analyzer = get_ast_analyzer()
+        file_summaries = []
+        
+        for file_data in files_data[:5]:  # Limit to 5 files to avoid token overflow
+            filename = file_data.get("filename", "")
+            language = file_data.get("language", "unknown")
+            full_content = file_data.get("full_content")
+            
+            if full_content and language != "unknown":
+                try:
+                    ast_data = ast_analyzer.analyze_code(full_content, language)
+                    file_summaries.append({
+                        "file": filename,
+                        "functions": [f["name"] for f in ast_data.get("functions", [])],
+                        "classes": [c["name"] for c in ast_data.get("classes", [])],
+                        "imports": ast_data.get("imports", []),
+                        "exports": ast_data.get("exports", []),
+                        "changes": f"+{file_data.get('additions', 0)} -{file_data.get('deletions', 0)}"
+                    })
+                except Exception as e:
+                    logger.debug(f"Skipping AST for {filename}: {e}")
+        
+        if not file_summaries:
+            return []
+        
+        # Build cross-file analysis prompt
+        prompt = self._build_cross_file_prompt(file_summaries)
+        
+        # Call LLM
+        try:
+            if self.provider == "groq" and self.use_groq:
+                response = self._call_groq(prompt)
+            elif self.provider == "anthropic" and self.use_anthropic:
+                response = self._call_anthropic(prompt)
+            elif self.use_groq:
+                response = self._call_groq(prompt)
+            elif self.use_openai:
+                response = self._call_openai(prompt)
+            elif self.use_anthropic:
+                response = self._call_anthropic(prompt)
+            else:
+                return []
+            
+            # Parse cross-file findings
+            findings = self._parse_llm_response(response, "cross-file-analysis")
+            return findings
+        except Exception as e:
+            logger.error(f"Cross-file LLM call failed: {e}")
+            return []
+    
+    def _build_cross_file_prompt(self, file_summaries: list) -> str:
+        """Build prompt for cross-file impact analysis"""
+        
+        files_overview = "\n".join([
+            f"**{fs['file']}** ({fs['changes']})\n" +
+            (f"  - Functions: {', '.join(fs['functions'][:5])}\n" if fs['functions'] else "") +
+            (f"  - Classes: {', '.join(fs['classes'][:3])}\n" if fs['classes'] else "") +
+            (f"  - Imports: {', '.join(fs['imports'][:5])}\n" if fs['imports'] else "") +
+            (f"  - Exports: {', '.join(fs['exports'][:5])}\n" if fs['exports'] else "")
+            for fs in file_summaries
+        ])
+        
+        prompt = f"""You are an expert code reviewer analyzing cross-file impact in a Pull Request.
+
+**Files Changed ({len(file_summaries)}):**
+
+{files_overview}
+
+**Analysis Objectives:**
+
+Identify issues that span multiple files:
+
+1. **Breaking Changes**: 
+   - Function/method signature changes without updating callers
+   - Renamed classes/functions not updated across imports
+   - Removed exports still being imported elsewhere
+
+2. **Inconsistent Updates**:
+   - Related files that should be updated together but weren't
+   - Similar patterns changed in one file but not others
+   - Configuration files out of sync
+
+3. **Dependency Issues**:
+   - Circular dependencies introduced
+   - Missing imports after refactoring
+   - Import paths that might break after file moves
+
+4. **Missing Tests**:
+   - Code changes without corresponding test updates
+   - New functions/classes without test coverage
+
+**Example Quality Findings:**
+
+```json
+[
+  {{
+    "line_number": 0,
+    "severity": "high",
+    "category": "bug",
+    "title": "Function signature changed without updating callers",
+    "description": "File A modified calculateTotal() to require 2 parameters instead of 1, but File B (which imports and calls this function) was not updated. This will cause runtime errors.",
+    "suggestion": "Update all call sites in File B to pass the new required parameter."
+  }},
+  {{
+    "line_number": 0,
+    "severity": "medium",
+    "category": "best_practice",
+    "title": "Missing test updates for new authentication logic",
+    "description": "auth.py was modified to add two-factor authentication, but auth_test.py was not updated with corresponding test cases.",
+    "suggestion": "Add test cases in auth_test.py to verify 2FA login flow and failure scenarios."
+  }}
+]
+```
+
+**Output Format:**
+Return a valid JSON array of cross-file findings. Use line_number: 0 for multi-file issues.
+
+Return ONLY the JSON array, no markdown formatting. If no cross-file issues found, return: []
+
+Your JSON response:
+"""
+        return prompt
+    
     def _analyze_file_with_llm(self, file_data: dict, rule_findings: list) -> list:
-        """Analyze a single file with LLM"""
+        """Analyze a single file with LLM using full context and AST"""
         filename = file_data["filename"]
         patch = file_data.get("patch", "")
+        full_content = file_data.get("full_content")
+        language = file_data.get("language", "unknown")
         
         # Limit patch size
         if len(patch) > settings.max_lines_per_llm_call * 100:
             patch = patch[:settings.max_lines_per_llm_call * 100]
         
-        # Build prompt
-        prompt = self._build_analysis_prompt(filename, patch, rule_findings)
+        # Get AST analysis if full content is available
+        ast_data = None
+        if full_content and language != "unknown":
+            try:
+                ast_analyzer = get_ast_analyzer()
+                ast_data = ast_analyzer.analyze_code(full_content, language)
+            except Exception as e:
+                logger.warning(f"AST analysis failed for {filename}: {e}")
+        
+        # Build enhanced prompt with full context
+        prompt = self._build_analysis_prompt(
+            filename, 
+            patch, 
+            rule_findings, 
+            full_content=full_content,
+            ast_data=ast_data
+        )
         
         # Call LLM based on configured provider
         if self.provider == "groq" and self.use_groq:
@@ -107,28 +269,73 @@ class LLMService:
         
         return findings
     
-    def _build_analysis_prompt(self, filename: str, patch: str, rule_findings: list) -> str:
-        """Build prompt for LLM analysis with few-shot examples"""
+    def _build_analysis_prompt(
+        self, 
+        filename: str, 
+        patch: str, 
+        rule_findings: list,
+        full_content: str = None,
+        ast_data: dict = None
+    ) -> str:
+        """Build enhanced prompt for LLM analysis with full file context and AST data"""
+        
+        # Build context sections
+        context_sections = []
+        
+        # Add AST structure if available
+        if ast_data:
+            ast_summary = []
+            if ast_data.get("functions"):
+                func_names = [f["name"] for f in ast_data["functions"][:10]]
+                ast_summary.append(f"Functions: {', '.join(func_names)}")
+            if ast_data.get("classes"):
+                class_names = [c["name"] for c in ast_data["classes"][:5]]
+                ast_summary.append(f"Classes: {', '.join(class_names)}")
+            if ast_data.get("imports"):
+                imports = ast_data["imports"][:5]
+                ast_summary.append(f"Imports: {len(ast_data['imports'])} ({', '.join(imports[:3])}...)")
+            
+            if ast_summary:
+                context_sections.append(f"**Code Structure:**\n" + "\n".join(f"- {s}" for s in ast_summary))
+                context_sections.append(f"- Cyclomatic Complexity: {ast_data.get('complexity', 0)}")
+        
+        # Add partial or full file content context
+        if full_content:
+            # Limit full content to reasonable size (first/last portions)
+            max_content_chars = 3000
+            if len(full_content) > max_content_chars:
+                lines = full_content.split('\n')
+                preview = '\n'.join(lines[:30]) + '\n...[truncated]...\n' + '\n'.join(lines[-20:])
+                context_sections.append(f"**Full File Context (truncated):**\n```\n{preview}\n```")
+            else:
+                context_sections.append(f"**Full File Content:**\n```\n{full_content}\n```")
+        
+        context_block = "\n\n".join(context_sections) if context_sections else ""
+        
         prompt = f"""You are an expert code reviewer with deep knowledge of software engineering best practices, security vulnerabilities, and performance optimization.
 
 File: {filename}
 
-Code Diff:
+{context_block}
+
+**Code Changes (Diff):**
 ```
 {patch}
 ```
 
 **Analysis Objectives:**
 1. **Logic & Correctness**: Identify bugs, incorrect logic, edge cases, off-by-one errors
-2. **Security**: Find vulnerabilities beyond simple patterns (auth bypasses, race conditions, TOCTOU, etc.)
+2. **Security**: Find vulnerabilities beyond simple patterns (auth bypasses, race conditions, TOCTOU, injection flaws, etc.)
 3. **Performance**: Detect inefficient algorithms, N+1 queries, memory leaks, unnecessary computations
 4. **Concurrency**: Identify race conditions, deadlock risks, thread-safety issues
 5. **Error Handling**: Gaps in error recovery, unhandled edge cases, resource leaks
 6. **Maintainability**: Complex code, poor naming, missing documentation for complex logic
+7. **Cross-file Impact**: Consider how changes might break other files that use this code
 
 **Context:**
 - Rule-based static analysis already detected {len([f for f in rule_findings if f['file_path'] == filename])} issues
-- Focus on issues that require reasoning and context understanding
+- You have access to the full file context and code structure (AST)
+- Focus on issues that require deep reasoning and understanding of the broader codebase
 - Ignore trivial style issues already caught by linters
 
 **Example Quality Findings:**
@@ -174,6 +381,7 @@ Return a valid JSON array of findings. Each finding must have:
 **Guidelines:**
 - Only report significant issues (not cosmetic)
 - Be specific with line numbers based on the diff
+- Use the full file context to understand impact on other functions/classes
 - Include WHY it's a problem, not just WHAT
 - Provide actionable suggestions
 - If no issues found, return: []
