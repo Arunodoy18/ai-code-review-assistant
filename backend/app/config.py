@@ -47,6 +47,17 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     
+    # Email (Phase 3A)
+    smtp_host: str = Field(default=os.getenv("SMTP_HOST", "smtp.gmail.com"))
+    smtp_port: int = Field(default=int(os.getenv("SMTP_PORT", "587")))
+    smtp_username: Optional[str] = Field(default=os.getenv("SMTP_USERNAME"))
+    smtp_password: Optional[str] = Field(default=os.getenv("SMTP_PASSWORD"))
+    smtp_from_email: str = Field(default=os.getenv("SMTP_FROM_EMAIL", "noreply@codereview.ai"))
+    smtp_from_name: str = Field(default=os.getenv("SMTP_FROM_NAME", "AI Code Review"))
+    enable_email: bool = Field(default=os.getenv("ENABLE_EMAIL", "false").lower() in {"1", "true", "yes"})
+    email_verification_token_expire_hours: int = Field(default=int(os.getenv("EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS", "24")))
+    password_reset_token_expire_hours: int = Field(default=int(os.getenv("PASSWORD_RESET_TOKEN_EXPIRE_HOURS", "1")))
+    
     # Environment
     environment: str = Field(default=os.getenv("ENVIRONMENT", "development"))
     port: int = Field(default=int(os.getenv("PORT", "8000")))

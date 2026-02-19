@@ -39,6 +39,7 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)
+    email_verified = Column(Boolean, default=False, index=True)  # Phase 3A: Email verification
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -124,3 +125,33 @@ class Finding(Base):
     finding_metadata = Column(JSON, default={})  # Additional context
 
     run = relationship("AnalysisRun", back_populates="findings")
+
+
+# Phase 3A: Security & Verification Models
+
+class EmailVerificationToken(Base):
+    """Email verification tokens for new user registration."""
+    __tablename__ = "email_verification_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    token = Column(String, unique=True, nullable=False, index=True)
+    expires_at = Column(DateTime, nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    used_at = Column(DateTime, nullable=True)  # NULL if not used, timestamp if verified
+
+    user = relationship("User", foreign_keys=[user_id])
+
+
+class PasswordResetToken(Base):
+    """Password reset tokens for forgot password flow."""
+    __tablename__ = "password_reset_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    token = Column(String, unique=True, nullable=False, index=True)
+    expires_at = Column(DateTime, nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    used_at = Column(DateTime, nullable=True)  # NULL if not used, timestamp if reset
+
+    user = relationship("User", foreign_keys=[user_id])

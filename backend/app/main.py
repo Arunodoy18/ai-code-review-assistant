@@ -6,8 +6,13 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from app.config import settings
 from app.database import engine, Base
-from app.api import webhooks, analysis, projects, health, config, auth, phase2
+from app.api import webhooks, analysis, projects, health, config, auth, phase2, auth_phase3a
 from app.middleware.cache import ResponseCacheMiddleware
+from app.middleware.security import (
+    SecurityHeadersMiddleware,
+    HTTPSRedirectMiddleware,
+    run_security_validation
+)
 from app.logging_config import setup_logging
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
@@ -67,6 +72,10 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
+# Phase 3A: Security middleware
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(HTTPSRedirectMiddleware)
+
 # Database validation on startup
 @app.on_event("startup")
 async def startup_event():
@@ -80,6 +89,9 @@ async def startup_event():
     except Exception as e:
         logger.error(f"FATAL: Database connectivity check failed: {e}")
         # In production, we might want to exit here, but for now just log
+    
+    # Phase 3A: Run security validation
+    run_security_validation()
 
 # Response caching
 app.add_middleware(ResponseCacheMiddleware)
@@ -97,6 +109,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
+app.include_router(auth_phase3a.router, prefix="/api/auth", tags=["authentication", "phase3a"])
 app.include_router(health.router, prefix="/api", tags=["health"])
 app.include_router(webhooks.router, prefix="/api/webhooks", tags=["webhooks"])
 app.include_router(projects.router, prefix="/api/projects", tags=["projects"])

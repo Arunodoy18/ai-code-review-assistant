@@ -2,24 +2,30 @@
 Authentication API endpoints.
 
 Provides signup, login, and user profile (me) endpoints using JWT tokens.
+Phase 3A: Email verification, password reset, and GDPR compliance.
 """
 
 from datetime import datetime, timedelta
 from typing import Optional
+import secrets
+import logging
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import get_db
-from app.models import User
+from app.models import User, EmailVerificationToken, PasswordResetToken, Project, AnalysisRun, Finding
 from app.services.auth_service import (
     create_access_token,
     get_current_user,
     get_password_hash,
     verify_password,
 )
+from app.services.email_service import get_email_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -42,6 +48,7 @@ class UserResponse(BaseModel):
     email: str
     name: str
     is_active: bool
+    email_verified: bool = False  # Phase 3A: Email verification status
     created_at: datetime
 
     class Config:
@@ -57,8 +64,8 @@ class AuthResponse(BaseModel):
 # ── Endpoints ──────────────────────────────────────────────────────────────
 
 @router.post("/signup", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
-def signup(body: SignupRequest, db: Session = Depends(get_db)):
-    """Register a new user account."""
+async def signup(body: SignupRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    """Register a new user account and send verification email."""
     existing = db.query(User).filter(User.email == body.email).first()
     if existing:
         raise HTTPException(
@@ -70,15 +77,36 @@ def signup(body: SignupRequest, db: Session = Depends(get_db)):
         name=body.name,
         email=body.email,
         hashed_password=get_password_hash(body.password),
+        email_verified=False,  # Phase 3A: Require email verification
     )
     db.add(user)
     db.commit()
     db.refresh(user)
 
-    token = create_access_token(data={"sub": str(user.id), "email": user.email})
+    # Generate verification token
+    token = secrets.token_urlsafe(32)
+    verification_token = EmailVerificationToken(
+        user_id=user.id,
+        token=token,
+        expires_at=datetime.utcnow() + timedelta(hours=settings.email_verification_token_expire_hours)
+    )
+    db.add(verification_token)
+    db.commit()
+
+    # Send verification email in background
+    email_service = get_email_service()
+    background_tasks.add_task(
+        email_service.send_verification_email,
+        to_email=user.email,
+        name=user.name,
+        verification_token=token
+    )
+
+    # Return JWT token (user can use app but some features require verification)
+    jwt_token = create_access_token(data={"sub": str(user.id), "email": user.email})
 
     return AuthResponse(
-        access_token=token,
+        access_token=jwt_token,
         user=UserResponse.model_validate(user),
     )
 
