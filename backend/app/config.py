@@ -85,8 +85,16 @@ class Settings(BaseSettings):
                 warnings.append("GitHub integration enabled but GITHUB_APP_ID is not set")
             if not self.resolve_github_private_key_path():
                 warnings.append("GitHub integration enabled but no private key provided (set path or base64 env)")
-        if not self.openai_api_key:
-            warnings.append("OPENAI_API_KEY not detected; AI analysis features will return empty results.")
+        # Check configured LLM provider key
+        provider = self.llm_provider.lower()
+        key_map = {
+            "openai": self.openai_api_key,
+            "anthropic": self.anthropic_api_key,
+            "google": self.google_api_key,
+            "groq": self.groq_api_key,
+        }
+        if provider in key_map and not key_map[provider]:
+            warnings.append(f"{provider.upper()} API key not detected; AI analysis features will return empty results.")
         if self.uses_sqlite:
             logger.info("Using local SQLite database located at %s", self.database_url)
         return warnings
