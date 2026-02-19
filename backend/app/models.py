@@ -30,6 +30,28 @@ class FindingCategory(str, enum.Enum):
     DOCUMENTATION = "documentation"
 
 
+# Phase 3B: Billing & Monetization Enums
+
+class SubscriptionTier(str, enum.Enum):
+    FREE = "free"
+    PRO = "pro"
+    ENTERPRISE = "enterprise"
+
+
+class SubscriptionStatus(str, enum.Enum):
+    ACTIVE = "active"
+    TRIALING = "trialing"
+    PAST_DUE = "past_due"
+    CANCELED = "canceled"
+    INCOMPLETE = "incomplete"
+    INCOMPLETE_EXPIRED = "incomplete_expired"
+
+
+class BillingInterval(str, enum.Enum):
+    MONTHLY = "monthly"
+    YEARLY = "yearly"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -54,7 +76,14 @@ class User(Base):
     github_token = Column(String, nullable=True)
     github_webhook_secret = Column(String, nullable=True)  # Per-user webhook secret
 
+    # Phase 3B: Billing & Subscriptions
+    subscription_tier = Column(String, default="FREE", nullable=False, index=True)  # FREE, PRO, ENTERPRISE
+    stripe_customer_id = Column(String, unique=True, nullable=True, index=True)
+    trial_ends_at = Column(DateTime, nullable=True)  # Free trial period
+    
     projects = relationship("Project", back_populates="owner")
+    subscription = relationship("Subscription", back_populates="user", uselist=False)  # One-to-one
+    usage_records = relationship("UsageTracking", back_populates="user")
 
 
 class Project(Base):
@@ -155,3 +184,63 @@ class PasswordResetToken(Base):
     used_at = Column(DateTime, nullable=True)  # NULL if not used, timestamp if reset
 
     user = relationship("User", foreign_keys=[user_id])
+
+
+class Subscription(Base):
+    """Stripe subscription tracking for billing."""
+    __tablename__ = "subscriptions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False, index=True)
+    
+    # Subscription details
+    tier = Column(String, nullable=False, index=True)  # FREE, PRO, ENTERPRISE
+    status = Column(String, nullable=False, index=True)  # ACTIVE, TRIALING, PAST_DUE, CANCELED, etc.
+    billing_interval = Column(String, nullable=True)  # MONTHLY, YEARLY (NULL for FREE)
+    
+    # Stripe integration
+    stripe_subscription_id = Column(String, unique=True, nullable=True, index=True)
+    stripe_price_id = Column(String, nullable=True)
+    stripe_current_period_start = Column(DateTime, nullable=True)
+    stripe_current_period_end = Column(DateTime, nullable=True)
+    stripe_cancel_at_period_end = Column(Boolean, default=False)
+    
+    # Trial tracking
+    trial_start = Column(DateTime, nullable=True)
+    trial_end = Column(DateTime, nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    canceled_at = Column(DateTime, nullable=True)
+    
+    user = relationship("User", back_populates="subscription")
+
+
+class UsageTracking(Base):
+    """Track API usage per user per month for billing limits."""
+    __tablename__ = "usage_tracking"
+    __table_args__ = (
+        UniqueConstraint('user_id', 'month', name='uq_user_month_usage'),
+        Index('idx_usage_user_month', 'user_id', 'month'),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    
+    # Time period (e.g., "2024-01" for January 2024)
+    month = Column(String, nullable=False, index=True)
+    
+    # Usage counters
+    analyses_used = Column(Integer, default=0, nullable=False)
+    analyses_limit = Column(Integer, nullable=False)  # Based on subscription tier
+    
+    # Additional metrics
+    total_lines_analyzed = Column(Integer, default=0, nullable=False)
+    total_findings_generated = Column(Integer, default=0, nullable=False)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    user = relationship("User", back_populates="usage_records")

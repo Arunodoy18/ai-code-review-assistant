@@ -6,7 +6,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from app.config import settings
 from app.database import engine, Base
-from app.api import webhooks, analysis, projects, health, config, auth, phase2, auth_phase3a
+from app.api import webhooks, analysis, projects, health, config, auth, phase2, auth_phase3a, billing
 from app.middleware.cache import ResponseCacheMiddleware
 from app.middleware.security import (
     SecurityHeadersMiddleware,
@@ -110,6 +110,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
 app.include_router(auth_phase3a.router, prefix="/api/auth", tags=["authentication", "phase3a"])
+app.include_router(billing.router, tags=["billing"])  # Phase 3B: Billing endpoints
 app.include_router(health.router, prefix="/api", tags=["health"])
 app.include_router(webhooks.router, prefix="/api/webhooks", tags=["webhooks"])
 app.include_router(projects.router, prefix="/api/projects", tags=["projects"])

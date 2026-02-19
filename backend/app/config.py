@@ -58,6 +58,16 @@ class Settings(BaseSettings):
     email_verification_token_expire_hours: int = Field(default=int(os.getenv("EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS", "24")))
     password_reset_token_expire_hours: int = Field(default=int(os.getenv("PASSWORD_RESET_TOKEN_EXPIRE_HOURS", "1")))
     
+    # Stripe (Phase 3B)
+    STRIPE_SECRET_KEY: str = Field(default=os.getenv("STRIPE_SECRET_KEY", ""))
+    STRIPE_PUBLISHABLE_KEY: str = Field(default=os.getenv("STRIPE_PUBLISHABLE_KEY", ""))
+    STRIPE_WEBHOOK_SECRET: str = Field(default=os.getenv("STRIPE_WEBHOOK_SECRET", ""))
+    STRIPE_PRO_MONTHLY_PRICE_ID: str = Field(default=os.getenv("STRIPE_PRO_MONTHLY_PRICE_ID", ""))
+    STRIPE_PRO_YEARLY_PRICE_ID: str = Field(default=os.getenv("STRIPE_PRO_YEARLY_PRICE_ID", ""))
+    STRIPE_ENTERPRISE_MONTHLY_PRICE_ID: str = Field(default=os.getenv("STRIPE_ENTERPRISE_MONTHLY_PRICE_ID", ""))
+    STRIPE_ENTERPRISE_YEARLY_PRICE_ID: str = Field(default=os.getenv("STRIPE_ENTERPRISE_YEARLY_PRICE_ID", ""))
+    enable_billing: bool = Field(default=os.getenv("ENABLE_BILLING", "false").lower() in {"1", "true", "yes"})
+    
     # Environment
     environment: str = Field(default=os.getenv("ENVIRONMENT", "development"))
     port: int = Field(default=int(os.getenv("PORT", "8000")))

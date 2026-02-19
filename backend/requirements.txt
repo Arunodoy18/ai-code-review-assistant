@@ -64,3 +64,6 @@ python-jose[cryptography]==3.3.0
 
 # Rate Limiting
 slowapi==0.1.9
+
+# Billing (Phase 3B)
+stripe==8.0.0

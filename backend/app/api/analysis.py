@@ -320,6 +320,13 @@ async def analyze_pr_manual(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
+    # Phase 3B: Check usage limits
+    from app.services.usage_service import UsageService
+    
+    can_analyze, error_msg = UsageService.can_perform_analysis(current_user, db)
+    if not can_analyze:
+        raise HTTPException(status_code=403, detail=error_msg)
+
     # Check GitHub token
     if not current_user.github_token:
         raise HTTPException(
@@ -549,6 +556,18 @@ def _run_analysis_inline(run_id: int, user: User, db: Session):
     run.run_metadata["ai_findings"] = len(ai_findings)
     run.completed_at = datetime.utcnow()
     run.status = RunStatus.COMPLETED
+    
+    # Phase 3B: Increment usage tracking
+    from app.services.usage_service import UsageService
+    
+    total_lines = sum(len(file.get("patch", "").split("\n")) for file in diff_data)
+    UsageService.increment_usage(
+        user=run.project.owner,
+        db=db,
+        lines_analyzed=total_lines,
+        findings_generated=len(deduplicated_findings),
+    )
+    
     db.commit()
 
     # Post results to PR (best-effort)
