@@ -232,4 +232,26 @@ export const api = {
     const response = await fetchWithErrorHandling(url, { method: 'POST' });
     return response.json();
   },
+
+  // API Keys management (SaaS per-user keys)
+  getApiKeys: async () => {
+    const url = `${getBaseUrl()}/api/auth/api-keys`;
+    const response = await fetchWithErrorHandling(url, { method: 'GET' });
+    return response.json();
+  },
+
+  updateApiKeys: async (keys: {
+    groq_api_key?: string;
+    openai_api_key?: string;
+    anthropic_api_key?: string;
+    google_api_key?: string;
+    preferred_llm_provider?: string;
+  }) => {
+    const url = `${getBaseUrl()}/api/auth/api-keys`;
+    const response = await fetchWithErrorHandling(url, {
+      method: 'PUT',
+      body: JSON.stringify(keys),
+    });
+    return response.json();
+  },
 };

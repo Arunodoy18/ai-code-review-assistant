@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard'
 import RunDetail from './pages/RunDetail'
 import Projects from './pages/Projects'
 import Configuration from './pages/Configuration'
+import Settings from './pages/Settings'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Landing from './pages/Landing'
@@ -33,6 +34,11 @@ function App() {
         <Route path="/configuration" element={
           <ProtectedRoute>
             <Layout><Configuration /></Layout>
+          </ProtectedRoute>
+        } />
+        <Route path="/settings" element={
+          <ProtectedRoute>
+            <Layout><Settings /></Layout>
           </ProtectedRoute>
         } />
         <Route path="/analysis/:id" element={

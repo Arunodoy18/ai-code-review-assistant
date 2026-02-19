@@ -109,8 +109,8 @@ export default function Landing() {
             <div className="text-xs text-sand-600 mt-1">Setup Time</div>
           </div>
           <div>
-            <div className="text-3xl font-extrabold text-sand-100">100%</div>
-            <div className="text-xs text-sand-600 mt-1">Open Source</div>
+            <div className="text-3xl font-extrabold text-sand-100">99.9%</div>
+            <div className="text-xs text-sand-600 mt-1">Uptime SLA</div>
           </div>
         </div>
       </section>
@@ -324,39 +324,61 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ─── Pricing / Why Free ─── */}
+      {/* ─── Pricing ─── */}
       <section className="relative py-28 px-6 border-t border-surface-4/50">
-        <div className="max-w-4xl mx-auto">
-          <div className="grid md:grid-cols-2 gap-10 items-center">
-            <div>
-              <span className="text-xs font-bold text-copper-500 uppercase tracking-[0.2em] mb-4 block">Open source</span>
-              <h2 className="text-3xl font-bold text-sand-100 mb-4">Free. Forever. No catch.</h2>
-              <p className="text-sand-500 mb-6 leading-relaxed">
-                CodeLens AI is open source and free to self-host. Bring your own Groq API key 
-                (free tier available) and deploy on your infrastructure. No vendor lock-in, no 
-                per-seat pricing, no surprise bills.
-              </p>
-              <ul className="space-y-3">
-                <BulletPoint text="Unlimited repositories" />
-                <BulletPoint text="Unlimited team members" />
-                <BulletPoint text="All features included" />
-                <BulletPoint text="Self-hosted — your data stays yours" />
-                <BulletPoint text="MIT Licensed" />
-              </ul>
-            </div>
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-16">
+            <span className="text-xs font-bold text-copper-500 uppercase tracking-[0.2em] mb-4 block">Simple pricing</span>
+            <h2 className="text-3xl font-bold text-sand-100 mb-4">Start free. Scale as you grow.</h2>
+            <p className="text-sand-500 max-w-lg mx-auto">No hidden fees. Cancel anytime. All plans include every feature.</p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6 items-start">
+            {/* Free */}
             <div className="card p-8 text-center">
-              <div className="text-5xl font-extrabold text-sand-50 mb-2">$0</div>
-              <div className="text-sm text-sand-600 mb-6">per month, forever</div>
+              <div className="text-sm font-semibold text-sand-400 mb-2">Starter</div>
+              <div className="text-4xl font-extrabold text-sand-50 mb-1">$0</div>
+              <div className="text-xs text-sand-600 mb-6">per month</div>
               <div className="border-t border-surface-4 pt-6 space-y-3 text-sm text-left">
-                <div className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 shrink-0" /><span className="text-sand-400">PR Risk Scoring (0-100)</span></div>
-                <div className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 shrink-0" /><span className="text-sand-400">AI Auto-Fix Generation</span></div>
-                <div className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 shrink-0" /><span className="text-sand-400">Natural Language Summaries</span></div>
-                <div className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 shrink-0" /><span className="text-sand-400">Learning / False-Positive Suppression</span></div>
-                <div className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 shrink-0" /><span className="text-sand-400">Security & Performance Rules</span></div>
-                <div className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 shrink-0" /><span className="text-sand-400">Multi-LLM (Groq, OpenAI, Anthropic, Google)</span></div>
+                <div className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 shrink-0" /><span className="text-sand-400">3 repositories</span></div>
+                <div className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 shrink-0" /><span className="text-sand-400">50 analyses per month</span></div>
+                <div className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 shrink-0" /><span className="text-sand-400">Bring your own API key</span></div>
+                <div className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 shrink-0" /><span className="text-sand-400">All AI features included</span></div>
+              </div>
+              <Link to="/signup" className="btn-ghost w-full mt-8 flex items-center justify-center gap-2">
+                Get Started
+              </Link>
+            </div>
+            {/* Pro */}
+            <div className="card p-8 text-center border-copper-500/30 relative">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 bg-copper-500 text-surface-0 text-[10px] font-bold rounded-full uppercase tracking-wider">Popular</div>
+              <div className="text-sm font-semibold text-copper-400 mb-2">Pro</div>
+              <div className="text-4xl font-extrabold text-sand-50 mb-1">$29</div>
+              <div className="text-xs text-sand-600 mb-6">per month</div>
+              <div className="border-t border-surface-4 pt-6 space-y-3 text-sm text-left">
+                <div className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 shrink-0" /><span className="text-sand-400">Unlimited repositories</span></div>
+                <div className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 shrink-0" /><span className="text-sand-400">Unlimited analyses</span></div>
+                <div className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 shrink-0" /><span className="text-sand-400">Platform-provided AI — no key needed</span></div>
+                <div className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 shrink-0" /><span className="text-sand-400">Priority processing</span></div>
+                <div className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 shrink-0" /><span className="text-sand-400">Email support</span></div>
               </div>
               <Link to="/signup" className="btn-primary w-full mt-8 flex items-center justify-center gap-2">
-                Get Started <ArrowRight className="w-4 h-4" />
+                Start Pro Trial <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+            {/* Team */}
+            <div className="card p-8 text-center">
+              <div className="text-sm font-semibold text-sand-400 mb-2">Team</div>
+              <div className="text-4xl font-extrabold text-sand-50 mb-1">$99</div>
+              <div className="text-xs text-sand-600 mb-6">per month, up to 10 seats</div>
+              <div className="border-t border-surface-4 pt-6 space-y-3 text-sm text-left">
+                <div className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 shrink-0" /><span className="text-sand-400">Everything in Pro</span></div>
+                <div className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 shrink-0" /><span className="text-sand-400">Team dashboard & analytics</span></div>
+                <div className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 shrink-0" /><span className="text-sand-400">Custom rule creation</span></div>
+                <div className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 shrink-0" /><span className="text-sand-400">SSO & SAML</span></div>
+                <div className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 shrink-0" /><span className="text-sand-400">Dedicated support</span></div>
+              </div>
+              <Link to="/signup" className="btn-ghost w-full mt-8 flex items-center justify-center gap-2">
+                Contact Sales
               </Link>
             </div>
           </div>
@@ -397,9 +419,9 @@ export default function Landing() {
             <span className="text-sm font-medium text-sand-700">CodeLens AI</span>
           </div>
           <div className="flex items-center gap-6 text-xs text-sand-700">
-            <span>Open Source</span>
-            <span>MIT License</span>
-            <span>&copy; 2026</span>
+            <span>Privacy Policy</span>
+            <span>Terms of Service</span>
+            <span>&copy; 2026 CodeLens AI</span>
           </div>
         </div>
       </footer>
@@ -481,13 +503,3 @@ function TechBadge({ label, sub }: { label: string; sub: string }) {
   );
 }
 
-function BulletPoint({ text }: { text: string }) {
-  return (
-    <li className="flex items-center gap-2.5 list-none">
-      <div className="w-5 h-5 bg-emerald-500/10 border border-emerald-500/20 rounded-full flex items-center justify-center shrink-0">
-        <Check className="w-3 h-3 text-emerald-400" />
-      </div>
-      <span className="text-sm text-sand-400">{text}</span>
-    </li>
-  );
-}

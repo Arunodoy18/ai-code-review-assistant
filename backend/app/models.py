@@ -41,6 +41,13 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    # Per-user LLM API keys (SaaS: users bring their own keys)
+    groq_api_key = Column(String, nullable=True)
+    openai_api_key = Column(String, nullable=True)
+    anthropic_api_key = Column(String, nullable=True)
+    google_api_key = Column(String, nullable=True)
+    preferred_llm_provider = Column(String, default="groq")
+
     projects = relationship("Project", back_populates="owner")
 
 

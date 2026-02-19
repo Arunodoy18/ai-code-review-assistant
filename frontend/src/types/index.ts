@@ -64,3 +64,19 @@ export interface Finding {
   created_at: string
   finding_metadata?: Record<string, any>
 }
+
+export interface ApiKeysResponse {
+  has_groq_key: boolean
+  has_openai_key: boolean
+  has_anthropic_key: boolean
+  has_google_key: boolean
+  preferred_llm_provider: string
+}
+
+export interface ApiKeysRequest {
+  groq_api_key?: string
+  openai_api_key?: string
+  anthropic_api_key?: string
+  google_api_key?: string
+  preferred_llm_provider?: string
+}

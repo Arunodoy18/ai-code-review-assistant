@@ -1,6 +1,6 @@
 from app.tasks import celery_app
 from app.database import SessionLocal
-from app.models import AnalysisRun, Finding, RunStatus, FindingSeverity, FindingCategory
+from app.models import AnalysisRun, Finding, Project, User, RunStatus, FindingSeverity, FindingCategory
 from app.services.github_service import GitHubService
 from app.services.analyzer_service import AnalyzerService
 from app.services.llm_service import LLMService
@@ -51,7 +51,20 @@ def analyze_pr_task(self, run_id: int):
         
         # Initialize services
         analyzer_service = AnalyzerService(project.config)
-        llm_service = LLMService()
+        
+        # Load per-user API keys if project has an owner
+        user_keys = None
+        if project.owner_id:
+            owner = db.query(User).filter(User.id == project.owner_id).first()
+            if owner:
+                user_keys = {
+                    "groq_api_key": owner.groq_api_key,
+                    "openai_api_key": owner.openai_api_key,
+                    "anthropic_api_key": owner.anthropic_api_key,
+                    "google_api_key": owner.google_api_key,
+                    "preferred_llm_provider": owner.preferred_llm_provider,
+                }
+        llm_service = LLMService(user_keys=user_keys)
         
         # Run rule-based analysis
         logger.info("Running rule-based analysis...")

@@ -16,24 +16,39 @@ except ImportError:
 
 
 class LLMService:
-    """Service for AI-powered code analysis using LLMs"""
+    """Service for AI-powered code analysis using LLMs.
     
-    def __init__(self):
-        self.use_openai = bool(settings.openai_api_key)
-        self.use_anthropic = bool(settings.anthropic_api_key) and HAS_ANTHROPIC
-        self.use_google = bool(settings.google_api_key)
-        self.use_groq = bool(settings.groq_api_key)
-        self.provider = settings.llm_provider.lower()
+    Supports per-user API keys (SaaS mode). When user_keys are provided,
+    they override the server-level keys from settings.
+    
+    Args:
+        user_keys: Optional dict with keys: groq_api_key, openai_api_key,
+                   anthropic_api_key, google_api_key, preferred_llm_provider
+    """
+    
+    def __init__(self, user_keys: dict = None):
+        # Per-user keys override server defaults
+        groq_key = (user_keys or {}).get("groq_api_key") or settings.groq_api_key
+        openai_key = (user_keys or {}).get("openai_api_key") or settings.openai_api_key
+        anthropic_key = (user_keys or {}).get("anthropic_api_key") or settings.anthropic_api_key
+        google_key = (user_keys or {}).get("google_api_key") or settings.google_api_key
+        provider = (user_keys or {}).get("preferred_llm_provider") or settings.llm_provider
+        
+        self.use_openai = bool(openai_key)
+        self.use_anthropic = bool(anthropic_key) and HAS_ANTHROPIC
+        self.use_google = bool(google_key)
+        self.use_groq = bool(groq_key)
+        self.provider = provider.lower()
         
         if self.use_openai:
-            openai.api_key = settings.openai_api_key
+            self.openai_client = openai.OpenAI(api_key=openai_key)
         
         if self.use_anthropic:
-            self.anthropic_client = anthropic_sdk.Anthropic(api_key=settings.anthropic_api_key)
+            self.anthropic_client = anthropic_sdk.Anthropic(api_key=anthropic_key)
         
         if self.use_groq:
             self.groq_client = openai.OpenAI(
-                api_key=settings.groq_api_key,
+                api_key=groq_key,
                 base_url="https://api.groq.com/openai/v1"
             )
     
@@ -175,7 +190,7 @@ Your JSON response:
         
         while retry_count < max_retries:
             try:
-                response = openai.chat.completions.create(
+                response = self.openai_client.chat.completions.create(
                     model="gpt-4-turbo-preview",
                     messages=[
                         {"role": "system", "content": "You are an expert code reviewer specializing in security, performance, and correctness. Respond only with valid JSON arrays."},

@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import Project
+from app.models import Project, User
 from app.config import settings
+from app.services.auth_service import get_current_user
 from pydantic import BaseModel
 from typing import Optional, Dict
 import logging
@@ -25,10 +26,10 @@ class ProjectUpdate(BaseModel):
 
 
 @router.get("/")
-async def list_projects(db: Session = Depends(get_db)):
-    """List all projects. Guaranteed to never throw - returns empty array if no data."""
+async def list_projects(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """List projects owned by the authenticated user."""
     try:
-        projects = db.query(Project).order_by(Project.created_at.desc()).all()
+        projects = db.query(Project).filter(Project.owner_id == current_user.id).order_by(Project.created_at.desc()).all()
         return {
             "success": True,
             "count": len(projects),
@@ -45,26 +46,27 @@ async def list_projects(db: Session = Depends(get_db)):
 
 
 @router.get("/{project_id}")
-async def get_project(project_id: int, db: Session = Depends(get_db)):
-    """Get project by ID"""
-    project = db.query(Project).filter(Project.id == project_id).first()
+async def get_project(project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Get project by ID (must belong to current user)"""
+    project = db.query(Project).filter(Project.id == project_id, Project.owner_id == current_user.id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     return project
 
 
 @router.post("/")
-async def create_project(project_data: ProjectCreate, db: Session = Depends(get_db)):
-    """Create a new project"""
-    # Check if project already exists
+async def create_project(project_data: ProjectCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Create a new project owned by the authenticated user"""
+    # Check if project already exists for this user
     existing = db.query(Project).filter(
-        Project.github_repo_full_name == project_data.github_repo_full_name
+        Project.github_repo_full_name == project_data.github_repo_full_name,
+        Project.owner_id == current_user.id
     ).first()
     
     if existing:
         raise HTTPException(status_code=400, detail="Project already exists")
     
-    project = Project(**project_data.dict())
+    project = Project(**project_data.dict(), owner_id=current_user.id)
     db.add(project)
     db.commit()
     db.refresh(project)
@@ -75,10 +77,11 @@ async def create_project(project_data: ProjectCreate, db: Session = Depends(get_
 async def update_project(
     project_id: int,
     project_data: ProjectUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    """Update project configuration"""
-    project = db.query(Project).filter(Project.id == project_id).first()
+    """Update project configuration (must belong to current user)"""
+    project = db.query(Project).filter(Project.id == project_id, Project.owner_id == current_user.id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     
@@ -92,9 +95,9 @@ async def update_project(
 
 
 @router.delete("/{project_id}")
-async def delete_project(project_id: int, db: Session = Depends(get_db)):
-    """Delete a project"""
-    project = db.query(Project).filter(Project.id == project_id).first()
+async def delete_project(project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Delete a project (must belong to current user)"""
+    project = db.query(Project).filter(Project.id == project_id, Project.owner_id == current_user.id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     

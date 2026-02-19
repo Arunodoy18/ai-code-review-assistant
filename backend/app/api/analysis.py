@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import AnalysisRun, Finding, Project, RunStatus
+from app.models import AnalysisRun, Finding, Project, User, RunStatus
 from app.config import settings
+from app.services.auth_service import get_current_user
 from app.tasks.analysis import analyze_pr_task
 from typing import Optional, List
 from datetime import datetime
@@ -21,11 +22,14 @@ async def list_analysis_runs(
     pr_number: Optional[int] = Query(None),
     limit: int = Query(50, le=100),
     offset: int = Query(0),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    """List analysis runs with optional filters. Guaranteed to never throw."""
+    """List analysis runs for projects owned by the authenticated user."""
     try:
-        query = db.query(AnalysisRun)
+        # Only show runs for projects owned by this user
+        user_project_ids = [p.id for p in db.query(Project.id).filter(Project.owner_id == current_user.id).all()]
+        query = db.query(AnalysisRun).filter(AnalysisRun.project_id.in_(user_project_ids))
         
         if project_id:
             query = query.filter(AnalysisRun.project_id == project_id)
@@ -51,13 +55,34 @@ async def list_analysis_runs(
         }
 
 
-@router.get("/runs/{run_id}")
-async def get_analysis_run(run_id: int, db: Session = Depends(get_db)):
-    """Get analysis run details"""
+def _verify_run_ownership(run_id: int, current_user: User, db: Session) -> AnalysisRun:
+    """Verify that the analysis run belongs to a project owned by the current user."""
     run = db.query(AnalysisRun).filter(AnalysisRun.id == run_id).first()
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
+    project = db.query(Project).filter(Project.id == run.project_id, Project.owner_id == current_user.id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Run not found")
     return run
+
+
+def _verify_finding_ownership(finding_id: int, current_user: User, db: Session) -> Finding:
+    """Verify that the finding belongs to a project owned by the current user."""
+    finding = db.query(Finding).filter(Finding.id == finding_id).first()
+    if not finding:
+        raise HTTPException(status_code=404, detail="Finding not found")
+    run = db.query(AnalysisRun).filter(AnalysisRun.id == finding.run_id).first()
+    if run:
+        project = db.query(Project).filter(Project.id == run.project_id, Project.owner_id == current_user.id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Finding not found")
+    return finding
+
+
+@router.get("/runs/{run_id}")
+async def get_analysis_run(run_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Get analysis run details (must belong to current user's project)"""
+    return _verify_run_ownership(run_id, current_user, db)
 
 
 @router.get("/runs/{run_id}/findings")
@@ -65,9 +90,11 @@ async def get_run_findings(
     run_id: int,
     severity: Optional[str] = Query(None),
     category: Optional[str] = Query(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    """Get findings for a specific run"""
+    """Get findings for a specific run (must belong to current user's project)"""
+    _verify_run_ownership(run_id, current_user, db)
     query = db.query(Finding).filter(Finding.run_id == run_id)
     
     if severity:
@@ -93,11 +120,9 @@ async def get_run_findings(
 
 
 @router.post("/runs/{run_id}/rerun")
-async def rerun_analysis(run_id: int, db: Session = Depends(get_db)):
+async def rerun_analysis(run_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Trigger a re-run of analysis for failed or completed runs"""
-    run = db.query(AnalysisRun).filter(AnalysisRun.id == run_id).first()
-    if not run:
-        raise HTTPException(status_code=404, detail="Run not found")
+    run = _verify_run_ownership(run_id, current_user, db)
     
     # Check if run can be rerun (only allow failed or completed runs to be rerun)
     if run.status not in [RunStatus.FAILED, RunStatus.COMPLETED]:
@@ -136,11 +161,9 @@ async def rerun_analysis(run_id: int, db: Session = Depends(get_db)):
 
 
 @router.patch("/findings/{finding_id}/resolve")
-async def resolve_finding(finding_id: int, db: Session = Depends(get_db)):
+async def resolve_finding(finding_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Mark a finding as resolved"""
-    finding = db.query(Finding).filter(Finding.id == finding_id).first()
-    if not finding:
-        raise HTTPException(status_code=404, detail="Finding not found")
+    finding = _verify_finding_ownership(finding_id, current_user, db)
     
     finding.is_resolved = 1
     db.commit()
@@ -149,15 +172,13 @@ async def resolve_finding(finding_id: int, db: Session = Depends(get_db)):
 
 
 @router.patch("/findings/{finding_id}/dismiss")
-async def dismiss_finding(finding_id: int, db: Session = Depends(get_db)):
+async def dismiss_finding(finding_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Dismiss a finding and learn from it (false-positive suppression).
     
     This marks the finding as dismissed and records the pattern so
     similar findings can be auto-suppressed in future runs.
     """
-    finding = db.query(Finding).filter(Finding.id == finding_id).first()
-    if not finding:
-        raise HTTPException(status_code=404, detail="Finding not found")
+    finding = _verify_finding_ownership(finding_id, current_user, db)
     
     finding.is_dismissed = 1
     
@@ -188,11 +209,9 @@ async def dismiss_finding(finding_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/findings/{finding_id}/auto-fix")
-async def get_auto_fix(finding_id: int, db: Session = Depends(get_db)):
+async def get_auto_fix(finding_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Get the AI-generated auto-fix for a finding"""
-    finding = db.query(Finding).filter(Finding.id == finding_id).first()
-    if not finding:
-        raise HTTPException(status_code=404, detail="Finding not found")
+    finding = _verify_finding_ownership(finding_id, current_user, db)
     
     return {
         "finding_id": finding_id,
@@ -202,18 +221,24 @@ async def get_auto_fix(finding_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/findings/{finding_id}/generate-fix")
-async def generate_fix_on_demand(finding_id: int, db: Session = Depends(get_db)):
+async def generate_fix_on_demand(finding_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Generate an auto-fix on demand for a finding that doesn't have one yet"""
-    finding = db.query(Finding).filter(Finding.id == finding_id).first()
-    if not finding:
-        raise HTTPException(status_code=404, detail="Finding not found")
+    finding = _verify_finding_ownership(finding_id, current_user, db)
     
     if finding.auto_fix_code:
         return {"finding_id": finding_id, "auto_fix_code": finding.auto_fix_code, "cached": True}
     
     try:
         from app.services.llm_service import LLMService
-        llm = LLMService()
+        # Use per-user API keys if configured
+        user_keys = {
+            "groq_api_key": current_user.groq_api_key,
+            "openai_api_key": current_user.openai_api_key,
+            "anthropic_api_key": current_user.anthropic_api_key,
+            "google_api_key": current_user.google_api_key,
+            "preferred_llm_provider": current_user.preferred_llm_provider,
+        }
+        llm = LLMService(user_keys=user_keys)
         
         finding_data = {
             "title": finding.title,
@@ -236,11 +261,9 @@ async def generate_fix_on_demand(finding_id: int, db: Session = Depends(get_db))
 
 
 @router.get("/runs/{run_id}/risk-score")
-async def get_risk_score(run_id: int, db: Session = Depends(get_db)):
+async def get_risk_score(run_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Get the PR risk score for an analysis run"""
-    run = db.query(AnalysisRun).filter(AnalysisRun.id == run_id).first()
-    if not run:
-        raise HTTPException(status_code=404, detail="Run not found")
+    run = _verify_run_ownership(run_id, current_user, db)
     
     return {
         "run_id": run_id,
@@ -250,11 +273,9 @@ async def get_risk_score(run_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/runs/{run_id}/summary")
-async def get_pr_summary(run_id: int, db: Session = Depends(get_db)):
+async def get_pr_summary(run_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Get the natural language PR summary for non-technical stakeholders"""
-    run = db.query(AnalysisRun).filter(AnalysisRun.id == run_id).first()
-    if not run:
-        raise HTTPException(status_code=404, detail="Run not found")
+    run = _verify_run_ownership(run_id, current_user, db)
     
     return {
         "run_id": run_id,
@@ -264,8 +285,9 @@ async def get_pr_summary(run_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/runs/{run_id}/dismissed")
-async def get_dismissed_findings(run_id: int, db: Session = Depends(get_db)):
+async def get_dismissed_findings(run_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Get findings that were dismissed in this run"""
+    _verify_run_ownership(run_id, current_user, db)
     findings = db.query(Finding).filter(Finding.run_id == run_id, Finding.is_dismissed == 1).all()
     return {
         "run_id": run_id,

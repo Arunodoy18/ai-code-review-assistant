@@ -1,6 +1,6 @@
 import { ReactNode, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Activity, Eye, FolderGit2, Settings, LogOut, User } from 'lucide-react'
+import { Activity, Eye, FolderGit2, Settings, Key, LogOut, User } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 interface LayoutProps {
@@ -21,7 +21,8 @@ export default function Layout({ children }: LayoutProps) {
   const navItems = [
     { path: '/', label: 'Dashboard', icon: Activity },
     { path: '/projects', label: 'Projects', icon: FolderGit2 },
-    { path: '/configuration', label: 'Settings', icon: Settings },
+    { path: '/configuration', label: 'Rules', icon: Settings },
+    { path: '/settings', label: 'API Keys', icon: Key },
   ]
 
   return (
