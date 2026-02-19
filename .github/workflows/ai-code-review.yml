@@ -1,0 +1,50 @@
+# AI Code Review - Automatic PR Analysis
+# This workflow automatically triggers code review when PRs are opened/updated
+name: AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  code-review:
+    name: Run AI Code Review
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch full history for better diff context
+      
+      - name: Trigger AI Code Review
+        env:
+          REVIEW_API_URL: ${{ secrets.CODE_REVIEW_API_URL }}
+          REVIEW_API_TOKEN: ${{ secrets.CODE_REVIEW_API_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Extract PR info
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          REPO_FULL_NAME=${{ github.repository }}
+          HEAD_SHA=${{ github.event.pull_request.head.sha }}
+          
+          echo "Triggering AI code review for PR #$PR_NUMBER"
+          
+          # Call the code review API
+          curl -X POST "$REVIEW_API_URL/api/analysis/analyze-pr" \
+            -H "Authorization: Bearer $REVIEW_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"repo_full_name\": \"$REPO_FULL_NAME\",
+              \"pr_number\": $PR_NUMBER,
+              \"head_sha\": \"$HEAD_SHA\"
+            }"
+      
+      - name: Wait for analysis completion
+        env:
+          REVIEW_API_URL: ${{ secrets.CODE_REVIEW_API_URL }}
+          REVIEW_API_TOKEN: ${{ secrets.CODE_REVIEW_API_TOKEN }}
+        run: |
+          echo "Analysis triggered. Check the PR for review comments."
+          # Optional: Poll for completion and fail if critical issues found
+          # (Implementation depends on your requirements)

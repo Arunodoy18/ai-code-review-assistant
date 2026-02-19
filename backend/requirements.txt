@@ -33,6 +33,14 @@ tree-sitter-python==0.20.4
 tree-sitter-javascript==0.20.3
 tree-sitter-typescript==0.20.5
 
+# Semantic Search & Embeddings (Phase 2)
+sentence-transformers==2.3.1
+pgvector==0.2.4
+numpy==1.26.3
+
+# Code Sandbox (Phase 2)
+docker==7.0.0
+
 # Linting/Analysis
 pylint==3.0.3
 flake8==7.0.0

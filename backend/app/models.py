@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, JSON, Enum as SQLEnum, Boolean, Float, UniqueConstraint
 from sqlalchemy.orm import relationship
+from sqlalchemy.dialects.postgresql import ARRAY
 from datetime import datetime
 import enum
 from app.database import Base
@@ -118,6 +119,7 @@ class Finding(Base):
     is_resolved = Column(Integer, default=0, index=True)
     is_dismissed = Column(Integer, default=0, index=True)  # Learning system: user dismissed this finding
     auto_fix_code = Column(Text, nullable=True)  # AI-generated fix patch
+    embedding = Column(ARRAY(Float), nullable=True)  # Phase 2: Semantic search vector (384-dim for all-MiniLM-L6-v2)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     finding_metadata = Column(JSON, default={})  # Additional context
 

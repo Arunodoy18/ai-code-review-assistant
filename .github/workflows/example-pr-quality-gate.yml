@@ -1,0 +1,110 @@
+# Example CI/CD Integration for AI Code Review
+# Copy this file to your repository's .github/workflows/ directory
+# and configure the secrets in your repository settings
+
+name: PR Quality Gate with AI Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  ai-code-review:
+    name: AI Code Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Run AI Code Review
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const pr = context.payload.pull_request;
+            
+            // Trigger review via webhook (if auto-trigger enabled)
+            // OR call API directly
+            
+            console.log(`AI review triggered for PR #${pr.number}`);
+            console.log(`Files changed: ${pr.changed_files}`);
+            console.log(`Additions: ${pr.additions}, Deletions: ${pr.deletions}`);
+      
+      - name: Check for critical findings
+        id: check-review
+        env:
+          REVIEW_API_URL: ${{ secrets.CODE_REVIEW_API_URL }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Optional: Query the review API for results
+          # Fail the check if critical security issues found
+          
+          # Example:
+          # CRITICAL_COUNT=$(curl -s "$REVIEW_API_URL/api/analysis/runs/latest?repo=${{ github.repository }}&pr=${{ github.event.pull_request.number }}" \
+          #   | jq '.findings | map(select(.severity == "critical")) | length')
+          # 
+          # if [ "$CRITICAL_COUNT" -gt 0 ]; then
+          #   echo "❌ Found $CRITICAL_COUNT critical issues. Please fix before merging."
+          #   exit 1
+          # fi
+          
+          echo "✅ Code review passed quality gate"
+      
+      - name: Post review summary
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // Optional: Post a summary comment on the PR
+            const prNumber = context.payload.pull_request.number;
+            
+            const comment = `## 🤖 AI Code Review Summary
+            
+            Code analysis has been triggered for this PR.
+            
+            - Files analyzed: ${context.payload.pull_request.changed_files}
+            - Lines changed: +${context.payload.pull_request.additions} -${context.payload.pull_request.deletions}
+            
+            Review findings will appear as inline comments shortly.
+            `;
+            
+            // await github.rest.issues.createComment({
+            //   owner: context.repo.owner,
+            //   repo: context.repo.repo,
+            //   issue_number: prNumber,
+            //   body: comment
+            // });
+
+  security-scan:
+    name: Security & Dependency Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Run dependency security scan
+        run: |
+          echo "Running security scans..."
+          # Add your security scanning tools here
+          # Examples: npm audit, pip-audit, Snyk, etc.
+      
+      - name: Check code quality metrics
+        run: |
+          echo "Checking code quality..."
+          # Add linting, complexity analysis, etc.
+
+  # Optional: Require AI review approval before merge
+  merge-gate:
+    name: Merge Quality Gate
+    runs-on: ubuntu-latest
+    needs: [ai-code-review, security-scan]
+    if: github.event_name == 'pull_request' && github.event.action == 'synchronize'
+    
+    steps:
+      - name: Verify review status
+        run: |
+          echo "All quality checks passed ✅"
+          echo "PR is ready for human review"

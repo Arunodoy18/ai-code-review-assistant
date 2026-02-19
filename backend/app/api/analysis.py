@@ -473,6 +473,12 @@ def _run_analysis_inline(run_id: int, user: User, db: Session):
             deduplicated_findings.append(merged)
 
     # Save findings
+    from app.services.semantic_search import get_semantic_search_service
+    from app.services.code_sandbox import get_code_sandbox
+    
+    semantic_search = get_semantic_search_service()
+    code_sandbox = get_code_sandbox()
+    
     for finding_data in deduplicated_findings:
         auto_fix = ""
         if finding_data["severity"] in (FindingSeverity.CRITICAL, FindingSeverity.HIGH):
@@ -485,6 +491,17 @@ def _run_analysis_inline(run_id: int, user: User, db: Session):
                     auto_fix = llm_service.generate_auto_fix(finding_data, file_patch)
             except Exception as e:
                 logger.warning(f"Auto-fix generation failed: {e}")
+        
+        # Phase 2: Generate embedding
+        embedding = None
+        if semantic_search.is_available():
+            try:
+                embedding_text = f"{finding_data['title']}\n{finding_data['description']}"
+                embedding_vector = semantic_search.embed_code(embedding_text)
+                if embedding_vector is not None:
+                    embedding = embedding_vector.tolist()
+            except Exception as e:
+                logger.warning(f"Embedding generation failed: {e}")
 
         finding = Finding(
             run_id=run.id,
@@ -500,6 +517,7 @@ def _run_analysis_inline(run_id: int, user: User, db: Session):
             code_snippet=finding_data.get("code_snippet"),
             is_ai_generated=finding_data.get("is_ai_generated", 0),
             auto_fix_code=auto_fix if auto_fix else None,
+            embedding=embedding,
             finding_metadata=finding_data.get("finding_metadata", {}),
         )
         db.add(finding)

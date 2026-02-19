@@ -6,7 +6,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from app.config import settings
 from app.database import engine, Base
-from app.api import webhooks, analysis, projects, health, config, auth
+from app.api import webhooks, analysis, projects, health, config, auth, phase2
 from app.middleware.cache import ResponseCacheMiddleware
 from app.logging_config import setup_logging
 import sentry_sdk
@@ -102,6 +102,7 @@ app.include_router(webhooks.router, prefix="/api/webhooks", tags=["webhooks"])
 app.include_router(projects.router, prefix="/api/projects", tags=["projects"])
 app.include_router(analysis.router, prefix="/api/analysis", tags=["analysis"])
 app.include_router(config.router, prefix="/api", tags=["configuration"])
+app.include_router(phase2.router, prefix="/api/phase2", tags=["phase2-features"])
 
 
 @app.get("/")
