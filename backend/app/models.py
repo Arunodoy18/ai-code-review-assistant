@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, JSON, Enum as SQLEnum, Boolean, Float
+from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, JSON, Enum as SQLEnum, Boolean, Float, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
@@ -48,16 +48,23 @@ class User(Base):
     google_api_key = Column(String, nullable=True)
     preferred_llm_provider = Column(String, default="groq")
 
+    # GitHub integration (SaaS: users provide their own PAT)
+    github_token = Column(String, nullable=True)
+    github_webhook_secret = Column(String, nullable=True)  # Per-user webhook secret
+
     projects = relationship("Project", back_populates="owner")
 
 
 class Project(Base):
     __tablename__ = "projects"
+    __table_args__ = (
+        UniqueConstraint('github_repo_full_name', 'owner_id', name='uq_project_repo_owner'),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False, index=True)
-    github_repo_full_name = Column(String, unique=True, nullable=False, index=True)  # owner/repo
-    github_installation_id = Column(Integer, nullable=False, index=True)
+    github_repo_full_name = Column(String, nullable=False, index=True)  # owner/repo
+    github_installation_id = Column(Integer, nullable=True, index=True)
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     config = Column(JSON, default={})  # Rules, thresholds, etc.
     dismissed_patterns = Column(JSON, default=[])  # Learned false-positive patterns

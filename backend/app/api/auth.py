@@ -120,6 +120,7 @@ class ApiKeysRequest(BaseModel):
     anthropic_api_key: Optional[str] = None
     google_api_key: Optional[str] = None
     preferred_llm_provider: Optional[str] = None
+    github_token: Optional[str] = None
 
 
 class ApiKeysResponse(BaseModel):
@@ -128,19 +129,79 @@ class ApiKeysResponse(BaseModel):
     has_anthropic_key: bool
     has_google_key: bool
     preferred_llm_provider: str
+    has_github_token: bool
+    github_username: Optional[str] = None
 
 
 @router.get("/api-keys", response_model=ApiKeysResponse)
 def get_api_keys(current_user: User = Depends(get_current_user)):
     """Get which API keys the user has configured (never returns actual keys)."""
+    github_username = None
+    if current_user.github_token:
+        try:
+            from app.services.github_pat_service import GitHubPATService
+            gh = GitHubPATService(current_user.github_token)
+            info = gh.validate_token()
+            if info.get("valid"):
+                github_username = info.get("login")
+        except Exception:
+            pass
+
     return ApiKeysResponse(
         has_groq_key=bool(current_user.groq_api_key),
         has_openai_key=bool(current_user.openai_api_key),
         has_anthropic_key=bool(current_user.anthropic_api_key),
         has_google_key=bool(current_user.google_api_key),
         preferred_llm_provider=current_user.preferred_llm_provider or "groq",
+        has_github_token=bool(current_user.github_token),
+        github_username=github_username,
     )
 
+
+@router.post("/test-github-token")
+def test_github_token(
+    current_user: User = Depends(get_current_user),
+):
+    """Test the user's stored GitHub token and return account info."""
+    if not current_user.github_token:
+        raise HTTPException(status_code=400, detail="No GitHub token configured")
+
+    from app.services.github_pat_service import GitHubPATService
+    gh = GitHubPATService(current_user.github_token)
+    result = gh.validate_token()
+    if not result.get("valid"):
+        raise HTTPException(status_code=401, detail=result.get("error", "Invalid token"))
+    return result
+
+
+@router.get("/webhook-info")
+def get_webhook_info(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get webhook URL and secret for setting up GitHub webhooks."""
+    from app.services.github_pat_service import generate_webhook_secret
+    
+    # Generate webhook secret if not exists
+    if not current_user.github_webhook_secret:
+        current_user.github_webhook_secret = generate_webhook_secret()
+        db.commit()
+        db.refresh(current_user)
+    
+    # Construct webhook URL (will need to be adjusted for production)
+    base_url = settings.frontend_url.replace("http://localhost:5173", "http://localhost:8000")
+    if settings.is_production:
+        # In production, this should be the public API URL
+        base_url = settings.frontend_url.replace("https://", "https://api.")
+    
+    webhook_url = f"{base_url}/api/webhooks/github/{current_user.id}"
+    
+    return {
+        "webhook_url": webhook_url,
+        "webhook_secret": current_user.github_webhook_secret,
+        "user_id": current_user.id,
+        "instructions": "Create a webhook on your GitHub repo with the URL above and the secret. Select 'Pull requests' events.",
+    }
 
 @router.put("/api-keys", response_model=ApiKeysResponse)
 def update_api_keys(
@@ -159,12 +220,32 @@ def update_api_keys(
         current_user.google_api_key = body.google_api_key or None
     if body.preferred_llm_provider is not None:
         current_user.preferred_llm_provider = body.preferred_llm_provider
+    if body.github_token is not None:
+        current_user.github_token = body.github_token or None
+        # Generate a webhook secret for this user if they don't have one
+        if current_user.github_token and not current_user.github_webhook_secret:
+            from app.services.github_pat_service import generate_webhook_secret
+            current_user.github_webhook_secret = generate_webhook_secret()
     db.commit()
     db.refresh(current_user)
+
+    github_username = None
+    if current_user.github_token:
+        try:
+            from app.services.github_pat_service import GitHubPATService
+            gh = GitHubPATService(current_user.github_token)
+            info = gh.validate_token()
+            if info.get("valid"):
+                github_username = info.get("login")
+        except Exception:
+            pass
+
     return ApiKeysResponse(
         has_groq_key=bool(current_user.groq_api_key),
         has_openai_key=bool(current_user.openai_api_key),
         has_anthropic_key=bool(current_user.anthropic_api_key),
         has_google_key=bool(current_user.google_api_key),
         preferred_llm_provider=current_user.preferred_llm_provider or "groq",
+        has_github_token=bool(current_user.github_token),
+        github_username=github_username,
     )

@@ -2,7 +2,7 @@ export interface Project {
   id: number
   name: string
   github_repo_full_name: string
-  github_installation_id: number
+  github_installation_id?: number | null
   config: Record<string, any>
   created_at: string
   updated_at: string
@@ -71,6 +71,8 @@ export interface ApiKeysResponse {
   has_anthropic_key: boolean
   has_google_key: boolean
   preferred_llm_provider: string
+  has_github_token: boolean
+  github_username?: string | null
 }
 
 export interface ApiKeysRequest {
@@ -79,4 +81,5 @@ export interface ApiKeysRequest {
   anthropic_api_key?: string
   google_api_key?: string
   preferred_llm_provider?: string
+  github_token?: string
 }

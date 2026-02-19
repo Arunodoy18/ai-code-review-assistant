@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request, HTTPException, Depends, Header
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import Project, AnalysisRun, RunStatus
+from app.models import Project, AnalysisRun, RunStatus, User
 from app.services.github_service import verify_github_signature, parse_pr_event
 from app.tasks.analysis import analyze_pr_task
 from app.config import settings
@@ -16,6 +16,19 @@ logger = logging.getLogger(__name__)
 # In production, use Redis or a DB table for this
 _processed_deliveries: set[str] = set()
 _MAX_DELIVERY_CACHE = 10000
+
+
+def verify_webhook_signature(payload_body: bytes, signature_header: str, secret: str) -> bool:
+    """Verify webhook HMAC signature."""
+    if not signature_header or not secret:
+        return False
+    hash_object = hmac.new(
+        secret.encode("utf-8"),
+        msg=payload_body,
+        digestmod=hashlib.sha256,
+    )
+    expected_signature = "sha256=" + hash_object.hexdigest()
+    return hmac.compare_digest(expected_signature, signature_header)
 
 
 @router.post("/github")
@@ -118,4 +131,112 @@ async def github_webhook(
         
     except Exception as e:
         logger.error(f"Webhook error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/github/{user_id}")
+async def github_webhook_user(
+    user_id: int,
+    request: Request,
+    x_hub_signature_256: str = Header(None),
+    x_github_event: str = Header(None),
+    x_github_delivery: str = Header(None),
+    db: Session = Depends(get_db),
+):
+    """
+    Per-user GitHub webhook endpoint for SaaS model.
+    Users set up webhooks on their repos with this URL and their personal webhook secret.
+    URL format: https://yourapp.com/api/webhooks/github/{user_id}
+    """
+    # Idempotency check
+    if x_github_delivery:
+        if x_github_delivery in _processed_deliveries:
+            logger.info(f"Duplicate webhook delivery {x_github_delivery}, skipping")
+            return {"message": "Already processed", "delivery_id": x_github_delivery}
+        if len(_processed_deliveries) >= _MAX_DELIVERY_CACHE:
+            _processed_deliveries.clear()
+        _processed_deliveries.add(x_github_delivery)
+
+    try:
+        # Get user and verify webhook secret
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user or not user.github_webhook_secret:
+            raise HTTPException(status_code=404, detail="User not found or webhook not configured")
+
+        body = await request.body()
+
+        # Verify signature using user's webhook secret
+        if not verify_webhook_signature(body, x_hub_signature_256, user.github_webhook_secret):
+            raise HTTPException(status_code=401, detail="Invalid webhook signature")
+
+        # Parse payload
+        payload = await request.json()
+
+        # Only handle PR events
+        if x_github_event not in ["pull_request", "pull_request_review"]:
+            logger.info(f"Ignoring event type: {x_github_event}")
+            return {"message": "Event ignored"}
+
+        # Check action
+        action = payload.get("action")
+        if action not in ["opened", "synchronize", "reopened"]:
+            logger.info(f"Ignoring PR action: {action}")
+            return {"message": "Action ignored"}
+
+        # Extract PR data
+        pr_data = parse_pr_event(payload)
+        repo_full_name = pr_data["repo_full_name"]
+
+        # Find project belonging to this user
+        project = db.query(Project).filter(
+            Project.github_repo_full_name == repo_full_name,
+            Project.owner_id == user.id,
+        ).first()
+
+        if not project:
+            # Auto-create project for this user
+            project = Project(
+                name=pr_data["repo_name"],
+                github_repo_full_name=repo_full_name,
+                github_installation_id=None,
+                owner_id=user.id,
+                config={},
+            )
+            db.add(project)
+            db.commit()
+            db.refresh(project)
+            logger.info(f"Auto-created project for {repo_full_name} (user {user.id})")
+
+        # Create analysis run
+        analysis_run = AnalysisRun(
+            project_id=project.id,
+            pr_number=pr_data["pr_number"],
+            pr_url=pr_data["pr_url"],
+            pr_title=pr_data["pr_title"],
+            pr_author=pr_data["pr_author"],
+            base_sha=pr_data["base_sha"],
+            head_sha=pr_data["head_sha"],
+            status=RunStatus.PENDING,
+            run_metadata={"action": action, "trigger": "webhook"},
+        )
+        db.add(analysis_run)
+        db.commit()
+        db.refresh(analysis_run)
+
+        # Queue analysis
+        if settings.enable_background_tasks:
+            analyze_pr_task.delay(analysis_run.id)
+        else:
+            logger.info("Background tasks disabled; analysis will not run automatically")
+
+        logger.info(f"Webhook queued analysis for PR #{pr_data['pr_number']} in {repo_full_name} (user {user.id})")
+
+        return {
+            "message": "Analysis queued",
+            "run_id": analysis_run.id,
+            "pr_number": pr_data["pr_number"],
+        }
+
+    except Exception as e:
+        logger.error(f"User webhook error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))

@@ -16,6 +16,11 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+class AnalyzePRRequest(BaseModel):
+    project_id: int
+    pr_number: int
+
+
 @router.get("/runs")
 async def list_analysis_runs(
     project_id: Optional[int] = Query(None),
@@ -294,3 +299,285 @@ async def get_dismissed_findings(run_id: int, db: Session = Depends(get_db), cur
         "dismissed_count": len(findings),
         "findings": findings,
     }
+
+
+@router.post("/analyze-pr")
+async def analyze_pr_manual(
+    body: AnalyzePRRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Manually trigger PR analysis via the user's GitHub PAT.
+    Fetches PR info, creates an AnalysisRun, and runs analysis inline (synchronous)
+    or queues it via Celery if background tasks are enabled.
+    """
+    # Verify project ownership
+    project = db.query(Project).filter(
+        Project.id == body.project_id,
+        Project.owner_id == current_user.id,
+    ).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Check GitHub token
+    if not current_user.github_token:
+        raise HTTPException(
+            status_code=400,
+            detail="Please configure your GitHub Personal Access Token in Settings first.",
+        )
+
+    # Fetch PR info via PAT
+    from app.services.github_pat_service import GitHubPATService
+
+    try:
+        gh = GitHubPATService(current_user.github_token)
+        pr_info = gh.get_pr_info(project.github_repo_full_name, body.pr_number)
+    except Exception as e:
+        logger.error(f"Failed to fetch PR info: {e}")
+        raise HTTPException(status_code=400, detail=f"Failed to fetch PR #{body.pr_number}: {str(e)}")
+
+    # Check if we already have a run for this PR + head SHA
+    existing_run = db.query(AnalysisRun).filter(
+        AnalysisRun.project_id == project.id,
+        AnalysisRun.pr_number == body.pr_number,
+        AnalysisRun.head_sha == pr_info["head_sha"],
+    ).first()
+    if existing_run and existing_run.status == RunStatus.COMPLETED:
+        return {
+            "message": "Analysis already exists for this PR version",
+            "run_id": existing_run.id,
+            "status": existing_run.status.value,
+            "already_exists": True,
+        }
+
+    # Create analysis run
+    analysis_run = AnalysisRun(
+        project_id=project.id,
+        pr_number=pr_info["pr_number"],
+        pr_url=pr_info["pr_url"],
+        pr_title=pr_info["pr_title"],
+        pr_author=pr_info["pr_author"],
+        base_sha=pr_info["base_sha"],
+        head_sha=pr_info["head_sha"],
+        status=RunStatus.PENDING,
+        run_metadata={"trigger": "manual"},
+    )
+    db.add(analysis_run)
+    db.commit()
+    db.refresh(analysis_run)
+
+    # Run analysis — try Celery first, fall back to synchronous inline
+    if settings.enable_background_tasks:
+        try:
+            analyze_pr_task.delay(analysis_run.id)
+            return {
+                "message": "Analysis queued",
+                "run_id": analysis_run.id,
+                "status": "pending",
+                "already_exists": False,
+            }
+        except Exception as e:
+            logger.warning(f"Celery unavailable, running inline: {e}")
+
+    # Synchronous inline analysis (no Celery)
+    try:
+        _run_analysis_inline(analysis_run.id, current_user, db)
+        db.refresh(analysis_run)
+        return {
+            "message": "Analysis completed",
+            "run_id": analysis_run.id,
+            "status": analysis_run.status.value,
+            "already_exists": False,
+        }
+    except Exception as e:
+        logger.error(f"Inline analysis failed: {e}", exc_info=True)
+        analysis_run.status = RunStatus.FAILED
+        analysis_run.error_message = str(e)
+        analysis_run.completed_at = datetime.utcnow()
+        db.commit()
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+
+
+def _run_analysis_inline(run_id: int, user: User, db: Session):
+    """Run PR analysis synchronously (no Celery) using user's PAT and API keys."""
+    from app.services.github_pat_service import GitHubPATService
+    from app.services.analyzer_service import AnalyzerService
+    from app.services.llm_service import LLMService
+    from app.models import FindingSeverity, FindingCategory
+    from collections import defaultdict
+
+    run = db.query(AnalysisRun).filter(AnalysisRun.id == run_id).first()
+    if not run:
+        raise ValueError(f"Run {run_id} not found")
+
+    run.status = RunStatus.RUNNING
+    db.commit()
+
+    project = run.project
+
+    # Use PAT-based service
+    gh = GitHubPATService(user.github_token)
+    diff_data = gh.get_pr_diff(project.github_repo_full_name, run.pr_number)
+
+    # Create status check (best-effort)
+    gh.create_status_check(
+        repo_full_name=project.github_repo_full_name,
+        commit_sha=run.head_sha,
+        state="pending",
+        description="AI code review in progress...",
+    )
+
+    # Initialize services
+    analyzer_service = AnalyzerService(project.config)
+    user_keys = {
+        "groq_api_key": user.groq_api_key,
+        "openai_api_key": user.openai_api_key,
+        "anthropic_api_key": user.anthropic_api_key,
+        "google_api_key": user.google_api_key,
+        "preferred_llm_provider": user.preferred_llm_provider,
+    }
+    llm_service = LLMService(user_keys=user_keys)
+
+    # Run rule-based analysis
+    logger.info("Running rule-based analysis...")
+    rule_findings = analyzer_service.analyze_diff(diff_data)
+
+    # Run AI analysis
+    logger.info("Running AI analysis...")
+    ai_findings = llm_service.analyze_diff(diff_data, rule_findings)
+
+    # Merge and deduplicate
+    all_findings = rule_findings + ai_findings
+
+    # Deduplicate
+    grouped = defaultdict(list)
+    for finding in all_findings:
+        key = (finding["file_path"], finding.get("line_number", 0))
+        grouped[key].append(finding)
+
+    deduplicated_findings = []
+    severity_order = {
+        FindingSeverity.CRITICAL: 0, FindingSeverity.HIGH: 1,
+        FindingSeverity.MEDIUM: 2, FindingSeverity.LOW: 3,
+    }
+    for (file_path, line_number), group in grouped.items():
+        if len(group) == 1:
+            deduplicated_findings.append(group[0])
+        else:
+            group_sorted = sorted(group, key=lambda f: severity_order.get(f["severity"], 4))
+            merged = group_sorted[0].copy()
+            categories = set(f["category"] for f in group)
+            if len(categories) > 1:
+                merged["description"] += f"\n\nAdditional concerns: {', '.join(c.value for c in categories if c != merged['category'])}"
+            deduplicated_findings.append(merged)
+
+    # Save findings
+    for finding_data in deduplicated_findings:
+        auto_fix = ""
+        if finding_data["severity"] in (FindingSeverity.CRITICAL, FindingSeverity.HIGH):
+            try:
+                file_patch = next(
+                    (f.get("patch", "") for f in diff_data if f["filename"] == finding_data["file_path"]),
+                    "",
+                )
+                if file_patch:
+                    auto_fix = llm_service.generate_auto_fix(finding_data, file_patch)
+            except Exception as e:
+                logger.warning(f"Auto-fix generation failed: {e}")
+
+        finding = Finding(
+            run_id=run.id,
+            file_path=finding_data["file_path"],
+            line_number=finding_data.get("line_number"),
+            end_line_number=finding_data.get("end_line_number"),
+            severity=finding_data["severity"],
+            category=finding_data["category"],
+            rule_id=finding_data.get("rule_id"),
+            title=finding_data["title"],
+            description=finding_data["description"],
+            suggestion=finding_data.get("suggestion"),
+            code_snippet=finding_data.get("code_snippet"),
+            is_ai_generated=finding_data.get("is_ai_generated", 0),
+            auto_fix_code=auto_fix if auto_fix else None,
+            finding_metadata=finding_data.get("finding_metadata", {}),
+        )
+        db.add(finding)
+
+    # Risk score
+    try:
+        risk_result = llm_service.compute_risk_score(diff_data, deduplicated_findings)
+        run.risk_score = risk_result["score"]
+        run.risk_breakdown = risk_result
+    except Exception as e:
+        logger.warning(f"Risk score computation failed: {e}")
+
+    # PR summary
+    try:
+        run_meta = {
+            "files_analyzed": len(diff_data),
+            "findings_count": len(deduplicated_findings),
+            "ai_findings": len(ai_findings),
+        }
+        pr_summary = llm_service.generate_pr_summary(diff_data, deduplicated_findings, run_meta)
+        run.pr_summary = pr_summary if pr_summary else None
+    except Exception as e:
+        logger.warning(f"PR summary generation failed: {e}")
+
+    # Update run
+    run.run_metadata["files_analyzed"] = len(diff_data)
+    run.run_metadata["findings_count"] = len(deduplicated_findings)
+    run.run_metadata["rule_findings"] = len(rule_findings)
+    run.run_metadata["ai_findings"] = len(ai_findings)
+    run.completed_at = datetime.utcnow()
+    run.status = RunStatus.COMPLETED
+    db.commit()
+
+    # Post results to PR (best-effort)
+    try:
+        critical = [f for f in deduplicated_findings if f["severity"] == FindingSeverity.CRITICAL]
+        high = [f for f in deduplicated_findings if f["severity"] == FindingSeverity.HIGH]
+        medium = [f for f in deduplicated_findings if f["severity"] == FindingSeverity.MEDIUM]
+
+        summary = f"""## 🤖 AI Code Review Summary
+
+**Analysis Results:**
+- 🔴 Critical: {len(critical)}
+- 🟠 High: {len(high)}
+- 🟡 Medium: {len(medium)}
+- Total Issues: {len(deduplicated_findings)}
+
+---
+
+"""
+        if critical:
+            summary += "### 🔴 Critical Issues\n\n"
+            for f in critical[:3]:
+                summary += f"- **{f['title']}** in `{f['file_path']}`\n"
+                summary += f"  {f['description'][:100]}...\n\n"
+        if high:
+            summary += "### 🟠 High Priority Issues\n\n"
+            for f in high[:3]:
+                summary += f"- **{f['title']}** in `{f['file_path']}`\n"
+                summary += f"  {f['description'][:100]}...\n\n"
+
+        gh.post_pr_comment(project.github_repo_full_name, run.pr_number, summary)
+
+        # Status check
+        if len(critical) > 0:
+            state, desc = "failure", f"❌ Found {len(critical)} critical issues"
+        elif len(high) > 0:
+            state, desc = "success", f"⚠️ Found {len(high)} high priority issues"
+        else:
+            state, desc = "success", "✅ No critical issues found"
+
+        gh.create_status_check(
+            repo_full_name=project.github_repo_full_name,
+            commit_sha=run.head_sha,
+            state=state,
+            description=desc,
+        )
+    except Exception as e:
+        logger.warning(f"Failed to post results to PR (non-fatal): {e}")
+
+    logger.info(f"Inline analysis completed for run {run_id}")

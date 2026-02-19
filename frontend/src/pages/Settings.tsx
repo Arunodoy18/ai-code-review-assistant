@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api as apiClient } from '../api/client';
 import { ApiKeysResponse } from '../types';
-import { Key, Shield, Zap, Brain, Globe, CheckCircle2, AlertCircle, Eye, EyeOff, Sparkles } from 'lucide-react';
+import { Key, Shield, Zap, Brain, Globe, CheckCircle2, AlertCircle, Eye, EyeOff, Sparkles, Github } from 'lucide-react';
 
 const LLM_PROVIDERS = [
   { value: 'groq', label: 'Groq', description: 'Llama 3.3 70B — fastest inference', icon: Zap },
@@ -17,10 +17,13 @@ export default function Settings() {
   const [openaiKey, setOpenaiKey] = useState('');
   const [anthropicKey, setAnthropicKey] = useState('');
   const [googleKey, setGoogleKey] = useState('');
+  const [githubToken, setGithubToken] = useState('');
   const [provider, setProvider] = useState('groq');
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [testingGitHub, setTestingGitHub] = useState(false);
+  const [githubTestResult, setGithubTestResult] = useState<any>(null);
 
   const { data: apiKeys, isLoading } = useQuery<ApiKeysResponse>({
     queryKey: ['api-keys'],
@@ -44,6 +47,8 @@ export default function Settings() {
       setOpenaiKey('');
       setAnthropicKey('');
       setGoogleKey('');
+      setGithubToken('');
+      setGithubTestResult(null);
       setTimeout(() => setSaveSuccess(false), 3000);
     },
     onError: (error: any) => {
@@ -58,6 +63,7 @@ export default function Settings() {
     if (openaiKey) keys.openai_api_key = openaiKey;
     if (anthropicKey) keys.anthropic_api_key = anthropicKey;
     if (googleKey) keys.google_api_key = googleKey;
+    if (githubToken) keys.github_token = githubToken;
     saveMutation.mutate(keys);
   };
 
@@ -65,6 +71,19 @@ export default function Settings() {
     const keys: any = {};
     keys[keyName] = '';
     saveMutation.mutate(keys);
+  };
+
+  const handleTestGitHub = async () => {
+    setTestingGitHub(true);
+    setGithubTestResult(null);
+    try {
+      const result = await apiClient.testGitHubToken();
+      setGithubTestResult(result);
+    } catch (error: any) {
+      setGithubTestResult({ valid: false, error: error.message || 'Token test failed' });
+    } finally {
+      setTestingGitHub(false);
+    }
   };
 
   const toggleShowKey = (key: string) => {
@@ -161,12 +180,112 @@ export default function Settings() {
         </div>
       </div>
 
+      {/* GitHub Integration */}
+      <div className="bg-surface-1 border border-surface-4 rounded-2xl p-6">
+        <h2 className="text-lg font-semibold text-sand-100 mb-1 flex items-center gap-2">
+          <Github className="w-5 h-5 text-copper-400" />
+          GitHub Integration
+        </h2>
+        <p className="text-sm text-sand-600 mb-5">
+          Connect your GitHub account using a Personal Access Token to enable repository analysis.
+        </p>
+
+        <div className="space-y-3">
+          <label className="flex items-center gap-2 text-sm font-medium text-sand-300">
+            <Github className="w-4 h-4 text-sand-600" />
+            GitHub Personal Access Token
+            {apiKeys?.has_github_token && (
+              <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20">
+                connected
+              </span>
+            )}
+            {apiKeys?.github_username && (
+              <span className="text-xs text-sand-500">
+                @{apiKeys.github_username}
+              </span>
+            )}
+          </label>
+          <div className="relative">
+            <input
+              type={showKeys.github ? 'text' : 'password'}
+              value={githubToken}
+              onChange={(e) => setGithubToken(e.target.value)}
+              placeholder={apiKeys?.has_github_token ? '••••••••••••••••••••' : 'ghp_...'}
+              className="w-full px-4 py-3 bg-surface-2 border border-surface-4 rounded-xl text-sand-200 placeholder:text-sand-700 focus:border-copper-600 focus:outline-none focus:ring-1 focus:ring-copper-600/50 transition-all text-sm font-mono"
+            />
+            <button
+              onClick={() => toggleShowKey('github')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-sand-600 hover:text-sand-400"
+            >
+              {showKeys.github ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {apiKeys?.has_github_token && (
+              <button
+                onClick={handleTestGitHub}
+                disabled={testingGitHub}
+                className="text-xs px-3 py-1.5 bg-surface-3 hover:bg-surface-4 text-sand-300 rounded-lg transition-colors border border-surface-5"
+              >
+                {testingGitHub ? 'Testing...' : 'Test Connection'}
+              </button>
+            )}
+            {apiKeys?.has_github_token && (
+              <button
+                onClick={() => handleClearKey('github_token')}
+                className="text-xs text-red-400/70 hover:text-red-400 transition-colors"
+              >
+                Remove token
+              </button>
+            )}
+          </div>
+
+          {githubTestResult && (
+            <div
+              className={`p-3 rounded-lg border text-sm ${
+                githubTestResult.valid
+                  ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
+                  : 'bg-red-500/10 border-red-500/20 text-red-300'
+              }`}
+            >
+              {githubTestResult.valid ? (
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>
+                    Connected as <strong>@{githubTestResult.login}</strong>
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4" />
+                  <span>{githubTestResult.error}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          <p className="text-xs text-sand-700">
+            Create a token at{' '}
+            <a
+              href="https://github.com/settings/tokens/new?scopes=repo,write:repo_hook"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-copper-400 hover:text-copper-300 underline"
+            >
+              github.com/settings/tokens
+            </a>
+            {' '}with <code className="px-1 py-0.5 bg-surface-3 rounded text-[11px]">repo</code> scope.
+          </p>
+        </div>
+      </div>
+
       {/* API Keys */}
       <div className="bg-surface-1 border border-surface-4 rounded-2xl p-6 space-y-5">
         <div>
           <h2 className="text-lg font-semibold text-sand-100 mb-1 flex items-center gap-2">
             <Shield className="w-5 h-5 text-copper-400" />
-            API Keys
+            LLM API Keys
           </h2>
           <p className="text-sm text-sand-600">
             Enter your API keys below. Keys are masked after saving — leave blank to keep existing key unchanged.

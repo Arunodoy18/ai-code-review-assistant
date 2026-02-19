@@ -1,7 +1,6 @@
 from app.tasks import celery_app
 from app.database import SessionLocal
 from app.models import AnalysisRun, Finding, Project, User, RunStatus, FindingSeverity, FindingCategory
-from app.services.github_service import GitHubService
 from app.services.analyzer_service import AnalyzerService
 from app.services.llm_service import LLMService
 from app.services.diff_parser import DiffParser
@@ -10,6 +9,24 @@ from collections import defaultdict
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def _get_github_service(project, owner):
+    """Get the appropriate GitHub service — PAT-based (SaaS) or App-based (legacy)."""
+    # Prefer PAT-based service if owner has a GitHub token
+    if owner and owner.github_token:
+        from app.services.github_pat_service import GitHubPATService
+        return GitHubPATService(owner.github_token)
+
+    # Fallback to legacy GitHub App service
+    if project.github_installation_id:
+        from app.services.github_service import GitHubService
+        return GitHubService(project.github_installation_id)
+
+    raise RuntimeError(
+        "No GitHub credentials available. "
+        "The project owner must configure a GitHub Personal Access Token in Settings."
+    )
 
 
 @celery_app.task(bind=True, max_retries=3)
@@ -32,7 +49,13 @@ def analyze_pr_task(self, run_id: int):
         
         # Get project and GitHub service
         project = run.project
-        github_service = GitHubService(project.github_installation_id)
+        
+        # Load owner for PAT-based auth
+        owner = None
+        if project.owner_id:
+            owner = db.query(User).filter(User.id == project.owner_id).first()
+        
+        github_service = _get_github_service(project, owner)
         
         # Create status check
         github_service.create_status_check(
@@ -52,18 +75,16 @@ def analyze_pr_task(self, run_id: int):
         # Initialize services
         analyzer_service = AnalyzerService(project.config)
         
-        # Load per-user API keys if project has an owner
+        # Load per-user API keys
         user_keys = None
-        if project.owner_id:
-            owner = db.query(User).filter(User.id == project.owner_id).first()
-            if owner:
-                user_keys = {
-                    "groq_api_key": owner.groq_api_key,
-                    "openai_api_key": owner.openai_api_key,
-                    "anthropic_api_key": owner.anthropic_api_key,
-                    "google_api_key": owner.google_api_key,
-                    "preferred_llm_provider": owner.preferred_llm_provider,
-                }
+        if owner:
+            user_keys = {
+                "groq_api_key": owner.groq_api_key,
+                "openai_api_key": owner.openai_api_key,
+                "anthropic_api_key": owner.anthropic_api_key,
+                "google_api_key": owner.google_api_key,
+                "preferred_llm_provider": owner.preferred_llm_provider,
+            }
         llm_service = LLMService(user_keys=user_keys)
         
         # Run rule-based analysis

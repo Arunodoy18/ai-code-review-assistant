@@ -246,11 +246,49 @@ export const api = {
     anthropic_api_key?: string;
     google_api_key?: string;
     preferred_llm_provider?: string;
+    github_token?: string;
   }) => {
     const url = `${getBaseUrl()}/api/auth/api-keys`;
     const response = await fetchWithErrorHandling(url, {
       method: 'PUT',
       body: JSON.stringify(keys),
+    });
+    return response.json();
+  },
+
+  // GitHub integration (SaaS PAT-based)
+  testGitHubToken: async () => {
+    const url = `${getBaseUrl()}/api/auth/test-github-token`;
+    const response = await fetchWithErrorHandling(url, { method: 'POST' });
+    return response.json();
+  },
+
+  getWebhookInfo: async () => {
+    const url = `${getBaseUrl()}/api/auth/webhook-info`;
+    const response = await fetchWithErrorHandling(url, { method: 'GET' });
+    return response.json();
+  },
+
+  addRepo: async (repoFullName: string) => {
+    const url = `${getBaseUrl()}/api/projects/add-repo`;
+    const response = await fetchWithErrorHandling(url, {
+      method: 'POST',
+      body: JSON.stringify({ repo_full_name: repoFullName }),
+    });
+    return response.json();
+  },
+
+  getProjectPrs: async (projectId: number) => {
+    const url = `${getBaseUrl()}/api/projects/${projectId}/prs`;
+    const response = await fetchWithErrorHandling(url, { method: 'GET' });
+    return response.json();
+  },
+
+  analyzePR: async (projectId: number, prNumber: number) => {
+    const url = `${getBaseUrl()}/api/analysis/analyze-pr`;
+    const response = await fetchWithErrorHandling(url, {
+      method: 'POST',
+      body: JSON.stringify({ project_id: projectId, pr_number: prNumber }),
     });
     return response.json();
   },
