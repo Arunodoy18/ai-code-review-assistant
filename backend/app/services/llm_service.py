@@ -7,20 +7,48 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-try:
-    import openai
-    HAS_OPENAI = True
-except ImportError:
-    openai = None  # type: ignore
-    HAS_OPENAI = False
-    logger.info("openai package not installed; OpenAI/Groq providers unavailable")
+# ─── LAZY IMPORTS — no module-level imports of heavy AI libraries ───
+# These are checked/imported only when LLMService is instantiated
+_openai_checked = False
+_anthropic_checked = False
+HAS_OPENAI = False
+HAS_ANTHROPIC = False
+openai = None
+anthropic_sdk = None
 
-try:
-    import anthropic as anthropic_sdk
-    HAS_ANTHROPIC = True
-except ImportError:
-    HAS_ANTHROPIC = False
-    logger.info("anthropic package not installed; Anthropic provider unavailable")
+
+def _ensure_openai():
+    """Lazy import of openai/groq SDK."""
+    global _openai_checked, HAS_OPENAI, openai
+    if not _openai_checked:
+        try:
+            import openai as _openai_module
+            openai = _openai_module
+            HAS_OPENAI = True
+            logger.debug("OpenAI SDK imported successfully")
+        except ImportError:
+            openai = None
+            HAS_OPENAI = False
+            logger.info("openai package not installed; OpenAI/Groq providers unavailable")
+        _openai_checked = True
+    return HAS_OPENAI
+
+
+def _ensure_anthropic():
+    """Lazy import of anthropic SDK."""
+    global _anthropic_checked, HAS_ANTHROPIC, anthropic_sdk
+    if not _anthropic_checked:
+        try:
+            import anthropic as _anthropic_module
+            anthropic_sdk = _anthropic_module
+            HAS_ANTHROPIC = True
+            logger.debug("Anthropic SDK imported successfully")
+        except ImportError:
+            anthropic_sdk = None
+            HAS_ANTHROPIC = False
+            logger.info("anthropic package not installed; Anthropic provider unavailable")
+        _anthropic_checked = True
+    return HAS_ANTHROPIC
 
 
 class LLMService:
@@ -42,10 +70,11 @@ class LLMService:
         google_key = (user_keys or {}).get("google_api_key") or settings.google_api_key
         provider = (user_keys or {}).get("preferred_llm_provider") or settings.llm_provider
         
-        self.use_openai = bool(openai_key) and HAS_OPENAI
-        self.use_anthropic = bool(anthropic_key) and HAS_ANTHROPIC
+        # Lazy check for library availability - only import when needed
+        self.use_openai = bool(openai_key) and _ensure_openai()
+        self.use_anthropic = bool(anthropic_key) and _ensure_anthropic()
         self.use_google = bool(google_key)
-        self.use_groq = bool(groq_key) and HAS_OPENAI  # Groq uses the openai SDK
+        self.use_groq = bool(groq_key) and _ensure_openai()  # Groq uses the openai SDK
         self.provider = provider.lower()
         
         if self.use_openai:
