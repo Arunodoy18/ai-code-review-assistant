@@ -53,7 +53,13 @@ def setup_logging():
     """Configure production-ready logging."""
     
     # Determine log level based on environment
-    log_level = logging.DEBUG if settings.is_development else logging.INFO
+    # Use LOG_LEVEL env var if set, otherwise INFO for all environments
+    import os
+    env_log_level = os.getenv("LOG_LEVEL", "").upper()
+    if env_log_level and hasattr(logging, env_log_level):
+        log_level = getattr(logging, env_log_level)
+    else:
+        log_level = logging.INFO
     
     # Create formatters
     if settings.is_production:
@@ -85,6 +91,18 @@ def setup_logging():
     logging.getLogger('uvicorn').setLevel(logging.INFO)
     logging.getLogger('uvicorn.access').setLevel(logging.WARNING if settings.is_production else logging.INFO)
     logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
+    logging.getLogger('passlib').setLevel(logging.WARNING)
+    logging.getLogger('multipart').setLevel(logging.WARNING)
+    logging.getLogger('httpcore').setLevel(logging.WARNING)
+    logging.getLogger('httpx').setLevel(logging.WARNING)
+
+    # Force uvicorn loggers to use our stdout handler instead of their default
+    # stderr handler (which PowerShell renders in red).
+    for uv_name in ('uvicorn', 'uvicorn.error', 'uvicorn.access'):
+        uv_logger = logging.getLogger(uv_name)
+        uv_logger.handlers.clear()
+        uv_logger.addHandler(console_handler)
+        uv_logger.propagate = False
     
     # Log startup info
     logger = logging.getLogger(__name__)
@@ -92,6 +110,44 @@ def setup_logging():
     logger.info(f"Log level: {logging.getLevelName(log_level)}")
     
     return logger
+
+
+# Uvicorn-compatible logging config that sends everything to stdout instead of
+# stderr (which PowerShell renders in red).  Used by main.py and the Dockerfile
+# entrypoint to override uvicorn's default logging behaviour.
+UVICORN_LOG_CONFIG = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "default": {
+            "()": "uvicorn.logging.DefaultFormatter",
+            "fmt": "%(asctime)s - uvicorn - %(levelname)s - %(message)s",
+            "datefmt": "%Y-%m-%d %H:%M:%S",
+        },
+        "access": {
+            "()": "uvicorn.logging.AccessFormatter",
+            "fmt": "%(asctime)s - uvicorn.access - INFO - %(client_addr)s - \"%(request_line)s\" %(status_code)s",
+            "datefmt": "%Y-%m-%d %H:%M:%S",
+        },
+    },
+    "handlers": {
+        "default": {
+            "formatter": "default",
+            "class": "logging.StreamHandler",
+            "stream": "ext://sys.stdout",
+        },
+        "access": {
+            "formatter": "access",
+            "class": "logging.StreamHandler",
+            "stream": "ext://sys.stdout",
+        },
+    },
+    "loggers": {
+        "uvicorn": {"handlers": ["default"], "level": "INFO", "propagate": False},
+        "uvicorn.error": {"handlers": ["default"], "level": "INFO", "propagate": False},
+        "uvicorn.access": {"handlers": ["access"], "level": "INFO", "propagate": False},
+    },
+}
 
 
 # Initialize logging on import

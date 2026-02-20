@@ -7,7 +7,6 @@ Create Date: 2026-02-19
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import ARRAY
 
 
 # revision identifiers, used by Alembic.
@@ -24,14 +23,14 @@ def upgrade():
     try:
         op.execute('CREATE EXTENSION IF NOT EXISTS vector')
     except Exception:
-        # If extension creation fails (permissions), the ARRAY column will still work
+        # If extension creation fails (permissions), the JSON column will still work
         # but won't have vector-optimized indexing
         pass
     
-    # Add embedding column to findings table
+    # Add embedding column to findings table (JSON for cross-DB compat)
     op.add_column(
         'findings',
-        sa.Column('embedding', ARRAY(sa.Float), nullable=True)
+        sa.Column('embedding', sa.JSON, nullable=True)
     )
     
     # Create index for faster similarity searches (if pgvector is available)

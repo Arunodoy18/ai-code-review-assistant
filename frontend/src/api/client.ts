@@ -2,13 +2,9 @@
  * API client with JWT authentication support.
  * Automatically attaches Bearer token from localStorage if available.
  */
+import { getApiBaseUrl } from '../config/env';
 
-const getBaseUrl = (): string => {
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
-  }
-  return 'http://localhost:8000';
-};
+const getBaseUrl = (): string => getApiBaseUrl();
 
 const getAuthHeaders = (): Record<string, string> => {
   const token = localStorage.getItem('auth_token');
@@ -63,7 +59,7 @@ const fetchWithErrorHandling = async (
     if (error instanceof TypeError) {
       // Network error - backend not running or unreachable
       throw new NetworkError(
-        'Backend server is not reachable. Make sure it is running on http://localhost:8000'
+        `Backend server is not reachable at ${getBaseUrl()}`
       );
     }
     throw error;

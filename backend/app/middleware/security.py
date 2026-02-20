@@ -7,7 +7,6 @@ HTTPS enforcement, security headers, rate limiting, and security best practices.
 from fastapi import Request, HTTPException, status
 from fastapi.responses import Response
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.middleware.cors import CORSMiddleware
 from datetime import datetime, timedelta
 from collections import defaultdict
 import logging
@@ -121,40 +120,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         return response
 
 
-def configure_cors(app):
-    """Configure CORS middleware with security best practices."""
-    allowed_origins = []
-    
-    if settings.is_production:
-        # In production, only allow specific origins
-        allowed_origins = [
-            settings.frontend_url,
-            "https://app.codereview.ai",  # Production domain
-            "https://www.codereview.ai",
-        ]
-    else:
-        # In development, allow localhost
-        allowed_origins = [
-            "http://localhost:5173",
-            "http://localhost:3000",
-            "http://127.0.0.1:5173",
-            "http://127.0.0.1:3000",
-        ]
-    
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=allowed_origins,
-        allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        allow_headers=["*"],
-        max_age=600,  # Cache preflight requests for 10 minutes
-    )
-
-
 def validate_email_security():
     """Validate email configuration for security."""
     if not settings.enable_email:
-        logger.warning("Email is disabled. Users cannot verify emails or reset passwords.")
+        logger.debug("Email is disabled. Users cannot verify emails or reset passwords.")
         return
     
     if settings.is_production:
@@ -162,10 +131,10 @@ def validate_email_security():
             logger.error("SMTP credentials not configured in production!")
         
         if settings.smtp_host == "smtp.gmail.com" and not settings.smtp_password:
-            logger.warning("Gmail SMTP detected but no app password configured. Use App Passwords, not your account password!")
+            logger.debug("Gmail SMTP detected but no app password configured. Use App Passwords, not your account password!")
         
         if settings.smtp_port not in [465, 587]:
-            logger.warning(f"Non-standard SMTP port {settings.smtp_port}. Use 587 (STARTTLS) or 465 (SSL/TLS).")
+            logger.debug(f"Non-standard SMTP port {settings.smtp_port}. Use 587 (STARTTLS) or 465 (SSL/TLS).")
 
 
 def validate_jwt_security():
@@ -174,10 +143,10 @@ def validate_jwt_security():
         if settings.is_production:
             logger.error("CRITICAL: Using default JWT secret in production! Set JWT_SECRET_KEY environment variable.")
         else:
-            logger.warning("Using development JWT secret. Set JWT_SECRET_KEY for production.")
+            logger.debug("Using development JWT secret. Set JWT_SECRET_KEY for production.")
     
     if len(settings.jwt_secret_key) < 32:
-        logger.warning("JWT secret key is too short. Use at least 32 characters for security.")
+        logger.debug("JWT secret key is too short. Use at least 32 characters for security.")
 
 
 def validate_https_configuration():

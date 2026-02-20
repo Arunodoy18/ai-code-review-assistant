@@ -10,9 +10,23 @@ from typing import Optional
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError, jwt
-from passlib.context import CryptContext
 from sqlalchemy.orm import Session
+
+try:
+    from jose import JWTError, jwt
+except ImportError as _exc:
+    raise ImportError(
+        "python-jose is required for authentication. "
+        "Install it with: pip install python-jose[cryptography]"
+    ) from _exc
+
+try:
+    from passlib.context import CryptContext
+except ImportError as _exc:
+    raise ImportError(
+        "passlib is required for password hashing. "
+        "Install it with: pip install passlib[bcrypt]"
+    ) from _exc
 
 from app.config import settings
 from app.database import get_db

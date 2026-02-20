@@ -8,12 +8,19 @@ from datetime import datetime, timedelta
 from typing import Optional
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-import aiosmtplib
+
+try:
+    import aiosmtplib
+except ImportError:
+    aiosmtplib = None  # type: ignore
+
 from jinja2 import Template
 
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+if aiosmtplib is None:
+    logger.debug("aiosmtplib not installed. Email features will be unavailable.")
 
 
 # Email Templates (using Jinja2)

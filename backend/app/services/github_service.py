@@ -1,16 +1,26 @@
 import hmac
 import hashlib
-import jwt
 import time
 from pathlib import Path
-
-from github import Github, GithubIntegration
 
 from app.config import settings
 
 import logging
 
 logger = logging.getLogger(__name__)
+
+try:
+    import jwt
+except ImportError:
+    jwt = None  # type: ignore
+    logger.info("PyJWT not installed; GitHub App JWT auth unavailable")
+
+try:
+    from github import Github, GithubIntegration
+except ImportError:
+    Github = None  # type: ignore
+    GithubIntegration = None  # type: ignore
+    logger.info("PyGithub not installed; GitHub API integration unavailable")
 
 
 def verify_github_signature(payload_body: bytes, signature_header: str) -> bool:

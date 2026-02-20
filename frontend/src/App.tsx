@@ -10,6 +10,9 @@ import Settings from './pages/Settings'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Landing from './pages/Landing'
+import PricingPage from './pages/Pricing'
+import PrivacyPolicy from './pages/PrivacyPolicy'
+import TermsOfService from './pages/TermsOfService'
 
 function App() {
   return (
@@ -19,6 +22,9 @@ function App() {
         <Route path="/welcome" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms-of-service" element={<TermsOfService />} />
         
         {/* Protected routes */}
         <Route path="/" element={

@@ -1,15 +1,13 @@
 /**
- * Simple environment configuration for local development.
- * Always defaults to localhost backend.
+ * Environment configuration — single source of truth for API URL.
+ * In production, set VITE_API_URL to your Render backend URL.
  */
 
-const LOCAL_API_URL = 'http://localhost:8000'
+const FALLBACK_API_URL = 'http://localhost:8000';
 
 export const getApiBaseUrl = (): string => {
-  // Allow override via Vite env variable if needed
-  if ((import.meta as any).env?.VITE_API_URL) {
-    return (import.meta as any).env.VITE_API_URL
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
   }
-  
-  return LOCAL_API_URL
-}
+  return FALLBACK_API_URL;
+};

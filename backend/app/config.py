@@ -16,6 +16,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_SQLITE_URL = f"sqlite:///{(BASE_DIR / 'local_dev.db').as_posix()}"
 
 
+def str_to_bool(value: str | None, default: bool = False) -> bool:
+    """Centralized boolean parsing for environment variables.
+
+    Accepts '1', 'true', 'yes' (case-insensitive) as True.
+    Everything else (including None / empty string) returns *default*.
+    """
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes"}
+
+
 class Settings(BaseSettings):
     """Application runtime configuration with local-first defaults."""
 
@@ -27,8 +38,8 @@ class Settings(BaseSettings):
     github_app_private_key_path: Optional[str] = Field(default=os.getenv("GITHUB_APP_PRIVATE_KEY_PATH"))
     github_app_private_key_b64: Optional[str] = Field(default=os.getenv("GITHUB_APP_PRIVATE_KEY_B64"))
     github_webhook_secret: str = Field(default=os.getenv("GITHUB_WEBHOOK_SECRET", ""))
-    enable_github_integration: bool = Field(default=os.getenv("ENABLE_GITHUB_INTEGRATION", "false").lower() in {"1", "true", "yes"})
-    enable_github_webhooks: bool = Field(default=os.getenv("ENABLE_GITHUB_WEBHOOKS", "false").lower() in {"1", "true", "yes"})
+    enable_github_integration: bool = Field(default_factory=lambda: str_to_bool(os.getenv("ENABLE_GITHUB_INTEGRATION")))
+    enable_github_webhooks: bool = Field(default_factory=lambda: str_to_bool(os.getenv("ENABLE_GITHUB_WEBHOOKS")))
     
     # LLM API
     openai_api_key: Optional[str] = Field(default=os.getenv("OPENAI_API_KEY"))
@@ -40,7 +51,7 @@ class Settings(BaseSettings):
     
     # Redis
     redis_url: str = Field(default=os.getenv("REDIS_URL", "redis://localhost:6379/0"))
-    enable_background_tasks: bool = Field(default=os.getenv("ENABLE_BACKGROUND_TASKS", "false").lower() in {"1", "true", "yes"})
+    enable_background_tasks: bool = Field(default_factory=lambda: str_to_bool(os.getenv("ENABLE_BACKGROUND_TASKS")))
     
     # JWT
     jwt_secret_key: str = Field(default=os.getenv("JWT_SECRET_KEY", "dev_secret_key_for_testing"))
@@ -54,7 +65,7 @@ class Settings(BaseSettings):
     smtp_password: Optional[str] = Field(default=os.getenv("SMTP_PASSWORD"))
     smtp_from_email: str = Field(default=os.getenv("SMTP_FROM_EMAIL", "noreply@codereview.ai"))
     smtp_from_name: str = Field(default=os.getenv("SMTP_FROM_NAME", "AI Code Review"))
-    enable_email: bool = Field(default=os.getenv("ENABLE_EMAIL", "false").lower() in {"1", "true", "yes"})
+    enable_email: bool = Field(default_factory=lambda: str_to_bool(os.getenv("ENABLE_EMAIL")))
     email_verification_token_expire_hours: int = Field(default=int(os.getenv("EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS", "24")))
     password_reset_token_expire_hours: int = Field(default=int(os.getenv("PASSWORD_RESET_TOKEN_EXPIRE_HOURS", "1")))
     
@@ -66,11 +77,11 @@ class Settings(BaseSettings):
     STRIPE_PRO_YEARLY_PRICE_ID: str = Field(default=os.getenv("STRIPE_PRO_YEARLY_PRICE_ID", ""))
     STRIPE_ENTERPRISE_MONTHLY_PRICE_ID: str = Field(default=os.getenv("STRIPE_ENTERPRISE_MONTHLY_PRICE_ID", ""))
     STRIPE_ENTERPRISE_YEARLY_PRICE_ID: str = Field(default=os.getenv("STRIPE_ENTERPRISE_YEARLY_PRICE_ID", ""))
-    enable_billing: bool = Field(default=os.getenv("ENABLE_BILLING", "false").lower() in {"1", "true", "yes"})
+    enable_billing: bool = Field(default_factory=lambda: str_to_bool(os.getenv("ENABLE_BILLING")))
     
     # Environment
     environment: str = Field(default=os.getenv("ENVIRONMENT", "development"))
-    port: int = Field(default=int(os.getenv("PORT", "8000")))
+    port: int = Field(default=int(os.getenv("PORT", "10000")))
     frontend_url: str = Field(default=os.getenv("FRONTEND_URL", "http://localhost:5173"))
     
     # Error Tracking
@@ -140,6 +151,9 @@ class Settings(BaseSettings):
             # LLM provider check - we support multiple providers, not just OpenAI
             if not any([self.openai_api_key, self.anthropic_api_key, self.google_api_key, self.groq_api_key]):
                 logger.warning("No LLM API key configured - users must provide their own")
+            # Groq-specific: if provider is groq, key MUST be present
+            if self.llm_provider.lower() == "groq" and not self.groq_api_key:
+                errors.append("LLM_PROVIDER is 'groq' but GROQ_API_KEY is not set")
         
         return errors
 
@@ -174,21 +188,23 @@ class Settings(BaseSettings):
         return None
 
     class Config:
-        env_file = ".env"
+        # Only load .env file in non-production; production relies on real env vars
+        env_file = ".env" if os.getenv("ENVIRONMENT", "development").lower() not in ("production", "prod") else None
         case_sensitive = False
 
 
 settings = Settings()
 
-# Validate requirements on import
+# Validate requirements on import — log but NEVER sys.exit() so the server can
+# bind its port and respond to health checks even with bad configuration.
+_config_errors: list[str] = []
 if settings.is_production:
-    validation_errors = settings.validate_production_requirements()
-    if validation_errors:
-        error_msg = "\n".join([f"  - {err}" for err in validation_errors])
-        logger.error(f"PRODUCTION CONFIGURATION ERRORS:\n{error_msg}")
-        # We don't raise here to allow the app to start and potentially show errors via API
+    _config_errors = settings.validate_production_requirements()
+    if _config_errors:
+        error_msg = "\n".join([f"  - {err}" for err in _config_errors])
+        logger.critical("PRODUCTION CONFIGURATION ERRORS (server degraded):\n%s", error_msg)
 else:
     validation_warnings = settings.validate_development_requirements()
     if validation_warnings:
         warning_msg = "\n".join([f"  - {warn}" for warn in validation_warnings])
-        logger.warning(f"DEVELOPMENT CONFIGURATION WARNINGS:\n{warning_msg}")
+        logger.debug("DEVELOPMENT CONFIGURATION NOTES:\n%s", warning_msg)

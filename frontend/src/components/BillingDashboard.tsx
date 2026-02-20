@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { apiClient } from '../api/client';
 
 interface Subscription {
@@ -23,7 +23,7 @@ interface UsageStats {
   is_unlimited: boolean;
 }
 
-export const BillingDashboard: React.FC = () => {
+export default function BillingDashboard() {
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [usage, setUsage] = useState<UsageStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -303,4 +303,4 @@ export const BillingDashboard: React.FC = () => {
       </div>
     </div>
   );
-};
+}

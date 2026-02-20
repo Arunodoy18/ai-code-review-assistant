@@ -6,17 +6,27 @@ instead of a GitHub App installation. Each user provides their own PAT
 in their account settings.
 """
 
-from github import Github, GithubException
 import logging
 import secrets
 
 logger = logging.getLogger(__name__)
+
+try:
+    from github import Github, GithubException
+    HAS_PYGITHUB = True
+except ImportError:
+    Github = None  # type: ignore
+    GithubException = Exception  # type: ignore
+    HAS_PYGITHUB = False
+    logger.debug("PyGithub not installed; GitHub PAT features unavailable")
 
 
 class GitHubPATService:
     """GitHub service using Personal Access Tokens (SaaS model)."""
 
     def __init__(self, token: str):
+        if not HAS_PYGITHUB:
+            raise RuntimeError("PyGithub package is not installed")
         if not token:
             raise ValueError("GitHub Personal Access Token is required")
         self._token = token

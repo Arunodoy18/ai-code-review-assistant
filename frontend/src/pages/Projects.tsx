@@ -2,9 +2,8 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { Project } from '../types'
-import { FolderGit2, ExternalLink, Activity, Clock, Settings, Plus, Github, RefreshCcw, X, GitPullRequest, Zap } from 'lucide-react'
+import { FolderGit2, ExternalLink, Activity, Clock, Plus, Github, RefreshCcw, X, GitPullRequest, Zap } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
-import { Link } from 'react-router-dom'
 
 export default function Projects() {
   const queryClient = useQueryClient()

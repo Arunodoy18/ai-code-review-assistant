@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from datetime import datetime
-from app.database import get_db, engine
+from app.database import get_db
 from app.config import settings
 import logging
 
@@ -23,6 +23,8 @@ async def health_check():
 
 @router.get("/ready")
 async def readiness_check(db: Session = Depends(get_db)):
+    # Lazy import engine only when readiness is checked
+    from app.database import engine  # noqa: F811
     """Readiness check with comprehensive dependency validation.
     
     Used by container orchestration to determine if app is ready for traffic.

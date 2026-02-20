@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 
@@ -11,7 +11,7 @@ interface Plan {
   features: string[];
 }
 
-export const PricingPage: React.FC = () => {
+export default function PricingPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [billingInterval, setBillingInterval] = useState<'MONTHLY' | 'YEARLY'>('MONTHLY');
   const [loading, setLoading] = useState(false);
@@ -248,4 +248,4 @@ export const PricingPage: React.FC = () => {
       </div>
     </div>
   );
-};
+}

@@ -1,16 +1,20 @@
-"""Semantic Code Search Service using sentence-transformers and pgvector"""
+"""Semantic Code Search Service using sentence-transformers"""
+from __future__ import annotations
+
 import logging
-from typing import List, Dict, Any, Optional
-import numpy as np
+from typing import TYPE_CHECKING, List, Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
 try:
+    import numpy as np
     from sentence_transformers import SentenceTransformer
     SENTENCE_TRANSFORMERS_AVAILABLE = True
 except ImportError:
-    logger.warning("sentence-transformers not available. Semantic search will be disabled.")
+    np = None  # type: ignore
+    SentenceTransformer = None  # type: ignore
     SENTENCE_TRANSFORMERS_AVAILABLE = False
+    logger.debug("numpy/sentence-transformers not available. Semantic search will be disabled.")
 
 
 class SemanticSearchService:
@@ -28,7 +32,7 @@ class SemanticSearchService:
         self.embedding_dim = 384  # Default for all-MiniLM-L6-v2
         
         if not SENTENCE_TRANSFORMERS_AVAILABLE:
-            logger.warning("Semantic search disabled - sentence-transformers not installed")
+            logger.debug("Semantic search disabled - sentence-transformers not installed")
             return
         
         try:

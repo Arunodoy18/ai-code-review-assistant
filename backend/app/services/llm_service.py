@@ -1,12 +1,19 @@
 from app.config import settings
 from app.models import FindingSeverity, FindingCategory
 from app.services.ast_analyzer import get_ast_analyzer
-import openai
 import logging
 import json
 import requests
 
 logger = logging.getLogger(__name__)
+
+try:
+    import openai
+    HAS_OPENAI = True
+except ImportError:
+    openai = None  # type: ignore
+    HAS_OPENAI = False
+    logger.info("openai package not installed; OpenAI/Groq providers unavailable")
 
 try:
     import anthropic as anthropic_sdk
@@ -35,10 +42,10 @@ class LLMService:
         google_key = (user_keys or {}).get("google_api_key") or settings.google_api_key
         provider = (user_keys or {}).get("preferred_llm_provider") or settings.llm_provider
         
-        self.use_openai = bool(openai_key)
+        self.use_openai = bool(openai_key) and HAS_OPENAI
         self.use_anthropic = bool(anthropic_key) and HAS_ANTHROPIC
         self.use_google = bool(google_key)
-        self.use_groq = bool(groq_key)
+        self.use_groq = bool(groq_key) and HAS_OPENAI  # Groq uses the openai SDK
         self.provider = provider.lower()
         
         if self.use_openai:

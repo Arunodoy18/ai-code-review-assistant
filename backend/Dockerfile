@@ -27,7 +27,6 @@ RUN mkdir -p /app/keys && chown -R appuser:appuser /app
 # Switch to non-root user
 USER appuser
 
-EXPOSE 8000
-
-# Use exec form with shell wrapper so $PORT is expanded at runtime
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Do NOT hardcode EXPOSE — Render injects $PORT at runtime
+# Use start.py entrypoint so uvicorn logs go to stdout (not stderr)
+CMD ["python", "start.py"]

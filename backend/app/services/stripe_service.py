@@ -1,5 +1,5 @@
 """Stripe billing service for subscription management."""
-import stripe
+import logging
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
@@ -7,7 +7,14 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.models import User, Subscription, SubscriptionTier, SubscriptionStatus, BillingInterval
 
-stripe.api_key = settings.STRIPE_SECRET_KEY
+logger = logging.getLogger(__name__)
+
+try:
+    import stripe
+    stripe.api_key = settings.STRIPE_SECRET_KEY
+except ImportError:
+    stripe = None  # type: ignore
+    logger.debug("stripe package not installed. Billing features will be unavailable.")
 
 
 class StripeService:
@@ -49,7 +56,7 @@ class StripeService:
                 name=user.name,
                 metadata={
                     "user_id": user.id,
-                    "environment": settings.ENVIRONMENT,
+                    "environment": settings.environment,
                 }
             )
             

@@ -1,34 +1,26 @@
 /**
- * Runtime configuration for local development.
- * This project is configured for localhost-only development.
- * For deployment configuration, see /docs/ folder.
+ * Runtime configuration.
+ * Uses env.ts as single source of truth for API URL.
  */
+import { getApiBaseUrl } from './env';
 
 interface RuntimeConfig {
   API_URL: string;
-  ENVIRONMENT: 'development';
+  ENVIRONMENT: string;
   VERSION: string;
 }
 
-const getApiUrl = (): string => {
-  // Allow override via Vite env variable if needed
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
-  }
-
-  // Default: localhost for local development
-  return 'http://localhost:8000';
-};
-
 export const config: RuntimeConfig = {
-  API_URL: getApiUrl(),
-  ENVIRONMENT: 'development',
+  API_URL: getApiBaseUrl(),
+  ENVIRONMENT: import.meta.env.MODE || 'development',
   VERSION: '1.0.0',
 };
 
-console.log('[Config] Local development mode:', {
-  apiUrl: config.API_URL,
-  environment: config.ENVIRONMENT,
-});
+if (import.meta.env.DEV) {
+  console.log('[Config] Development mode:', {
+    apiUrl: config.API_URL,
+    environment: config.ENVIRONMENT,
+  });
+}
 
 export default config;

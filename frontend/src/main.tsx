@@ -16,13 +16,13 @@ if (sentryDsn) {
     dsn: sentryDsn,
     environment: config.ENVIRONMENT,
     integrations: [
-      new Sentry.BrowserTracing({
+      Sentry.browserTracingIntegration({
         tracePropagationTargets: [
           'localhost',
           config.API_URL
         ],
       }),
-      new Sentry.Replay(),
+      Sentry.replayIntegration(),
     ],
     tracesSampleRate: 0.1,
     replaysSessionSampleRate: 0.1,

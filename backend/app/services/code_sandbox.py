@@ -11,7 +11,7 @@ try:
     import docker
     DOCKER_AVAILABLE = True
 except ImportError:
-    logger.warning("docker package not available. Code sandbox will be disabled.")
+    logger.debug("docker package not available. Code sandbox will be disabled.")
     DOCKER_AVAILABLE = False
 
 
@@ -23,7 +23,7 @@ class CodeSandbox:
         self.client = None
         
         if not DOCKER_AVAILABLE:
-            logger.warning("Code sandbox disabled - docker package not installed")
+            logger.debug("Code sandbox disabled - docker package not installed")
             return
         
         try:
