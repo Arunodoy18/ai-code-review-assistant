@@ -127,21 +127,19 @@ class Settings(BaseSettings):
         if self.is_production:
             if self.jwt_secret_key == "dev_secret_key_for_testing":
                 errors.append("JWT_SECRET_KEY must be set in production")
-            if not self.github_webhook_secret:
-                errors.append("GITHUB_WEBHOOK_SECRET must be set in production")
-            if self.enable_github_integration:
-                if not self.github_app_id:
-                    errors.append("GITHUB_APP_ID must be configured when GitHub integration is enabled")
-                if not self.resolve_github_private_key_path():
-                    errors.append("GitHub App private key must be provided via path or base64")
-            if not self.openai_api_key:
-                errors.append("OPENAI_API_KEY must be set in production")
             if not self.sentry_dsn:
                 logger.warning("SENTRY_DSN not set - error tracking disabled in production")
             if "localhost" in self.database_url or "127.0.0.1" in self.database_url:
                 errors.append("DATABASE_URL cannot point to localhost in production")
-            if "localhost" in self.redis_url or "127.0.0.1" in self.redis_url:
-                errors.append("REDIS_URL cannot point to localhost in production")
+            # GitHub integration uses per-user PATs (SaaS model), no global GitHub App needed
+            if self.enable_github_integration:
+                logger.info("GitHub integration enabled (per-user PAT model)")
+            # Redis is optional - only warn if background tasks enabled
+            if self.enable_background_tasks and ("localhost" in self.redis_url or "127.0.0.1" in self.redis_url):
+                logger.warning("REDIS_URL points to localhost but background tasks are enabled")
+            # LLM provider check - we support multiple providers, not just OpenAI
+            if not any([self.openai_api_key, self.anthropic_api_key, self.google_api_key, self.groq_api_key]):
+                logger.warning("No LLM API key configured - users must provide their own")
         
         return errors
 

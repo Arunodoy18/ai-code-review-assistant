@@ -530,7 +530,7 @@ Your JSON response:
         elif self.use_groq:
             return self._call_groq_raw(system_prompt, user_prompt)
         elif self.use_openai:
-            resp = openai.chat.completions.create(
+            resp = self.openai_client.chat.completions.create(
                 model="gpt-4-turbo-preview", max_tokens=4000, temperature=0.3,
                 messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}])
             return resp.choices[0].message.content

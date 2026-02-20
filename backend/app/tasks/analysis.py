@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from app.tasks import celery_app
 from app.database import SessionLocal
 from app.models import AnalysisRun, Finding, Project, User, RunStatus, FindingSeverity, FindingCategory

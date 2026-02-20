@@ -53,6 +53,9 @@ class HTTPSRedirectMiddleware(BaseHTTPMiddleware):
     
     async def dispatch(self, request: Request, call_next):
         if settings.is_production:
+            # Skip HTTPS redirect for health checks (Render probes internally over HTTP)
+            if request.url.path in ("/api/health", "/health", "/"):
+                return await call_next(request)
             # Check if request is HTTP (not HTTPS)
             if request.url.scheme != "https":
                 # Check X-Forwarded-Proto header (for reverse proxies)
@@ -180,11 +183,13 @@ def validate_jwt_security():
 def validate_https_configuration():
     """Validate HTTPS configuration."""
     if settings.is_production:
-        if not settings.frontend_url.startswith("https://"):
-            logger.error("FRONTEND_URL must use HTTPS in production!")
-        
-        if "localhost" in settings.frontend_url or "127.0.0.1" in settings.frontend_url:
-            logger.error("FRONTEND_URL cannot point to localhost in production!")
+        # Support comma-separated frontend URLs
+        frontend_urls = [url.strip() for url in settings.frontend_url.split(",") if url.strip()]
+        for url in frontend_urls:
+            if not url.startswith("https://"):
+                logger.warning(f"FRONTEND_URL '{url}' should use HTTPS in production")
+            if "localhost" in url or "127.0.0.1" in url:
+                logger.warning(f"FRONTEND_URL '{url}' points to localhost in production")
 
 
 def run_security_validation():

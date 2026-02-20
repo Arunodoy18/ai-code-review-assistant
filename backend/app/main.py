@@ -51,21 +51,23 @@ limiter = Limiter(key_func=get_remote_address, default_limits=[f"{settings.rate_
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# CORS - Simple localhost configuration for development
-# Production deployments should configure FRONTEND_URL environment variable
+# CORS - Support multiple frontend URLs (comma-separated in FRONTEND_URL env var)
+_frontend_origins = [url.strip() for url in settings.frontend_url.split(",") if url.strip()]
+_allowed_origins = [
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:5175",
+    "http://localhost:8000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",
+    "http://127.0.0.1:5175",
+    "http://127.0.0.1:8000",
+] + _frontend_origins
+logger.info(f"CORS allowed origins: {_allowed_origins}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "http://localhost:5175",
-        "http://localhost:8000",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:5174",
-        "http://127.0.0.1:5175",
-        "http://127.0.0.1:8000",
-        settings.frontend_url,
-    ],
+    allow_origins=_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

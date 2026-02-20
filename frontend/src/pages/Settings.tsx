@@ -5,10 +5,10 @@ import { ApiKeysResponse } from '../types';
 import { Key, Shield, Zap, Brain, Globe, CheckCircle2, AlertCircle, Eye, EyeOff, Sparkles, Github } from 'lucide-react';
 
 const LLM_PROVIDERS = [
-  { value: 'groq', label: 'Groq', description: 'Llama 3.3 70B — fastest inference', icon: Zap },
-  { value: 'openai', label: 'OpenAI', description: 'GPT-4 Turbo — highest accuracy', icon: Brain },
+  { value: 'groq', label: 'Groq (Recommended)', description: 'Llama 3.3 70B — fastest & free tier', icon: Zap },
   { value: 'anthropic', label: 'Anthropic', description: 'Claude 3 — balanced reasoning', icon: Shield },
   { value: 'google', label: 'Google', description: 'Gemini Pro — cost effective', icon: Globe },
+  { value: 'openai', label: 'OpenAI', description: 'GPT-4 Turbo — optional alternative', icon: Brain },
 ];
 
 export default function Settings() {
