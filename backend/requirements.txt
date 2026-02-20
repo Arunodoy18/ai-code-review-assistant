@@ -10,7 +10,7 @@ sqlalchemy==2.0.25
 alembic==1.13.1
 psycopg2-binary==2.9.9
 
-# Redis & Celery
+# Redis & Celery (optional — only needed with ENABLE_BACKGROUND_TASKS=true)
 redis==5.0.1
 celery==5.3.6
 
@@ -27,19 +27,21 @@ openai==1.10.0
 anthropic==0.18.1
 requests==2.31.0
 
-# Code Analysis & AST Parsing
+# Code Analysis & AST Parsing (lightweight — no CUDA needed)
 tree-sitter==0.21.3
 tree-sitter-python==0.21.0
 tree-sitter-javascript==0.21.4
 tree-sitter-typescript==0.21.2
 
-# Semantic Search & Embeddings (Phase 2)
-sentence-transformers==2.3.1
+# Semantic Search & Embeddings (Phase 2) — CPU only, no torch/CUDA
+# sentence-transformers is heavy (~2GB with torch); disabled in production for fast startup
+# Uncomment if you have a GPU instance or want local embeddings:
+# sentence-transformers==2.3.1
 pgvector==0.2.4
 numpy==1.26.3
 
-# Code Sandbox (Phase 2)
-docker==7.0.0
+# Code Sandbox (Phase 2) — only works where Docker daemon is available
+# docker==7.0.0
 
 # Linting/Analysis
 pylint==3.0.3
@@ -54,7 +56,6 @@ python-dotenv==1.0.0
 jinja2==3.1.3
 aiosmtplib==3.0.1
 email-validator==2.1.0
-python-dotenv==1.0.0
 httpx==0.26.0
 tenacity==8.2.3
 

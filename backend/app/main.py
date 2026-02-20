@@ -6,23 +6,34 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from app.config import settings
 from app.database import engine, Base
-from app.api import webhooks, analysis, projects, health, config, auth, phase2, auth_phase3a, billing
+from app.logging_config import setup_logging
+import logging
+import sys
+
+# Initialize logging first
+logger = setup_logging()
+logger.info("Starting application import sequence...")
+
+# Lazy-import heavy routers to keep startup fast
+try:
+    from app.api import webhooks, analysis, projects, health, config, auth, phase2, auth_phase3a, billing
+    logger.info("API routers imported successfully")
+except Exception as e:
+    logger.error(f"FATAL: Failed to import API routers: {e}", exc_info=True)
+    sys.exit(1)
+
 from app.middleware.cache import ResponseCacheMiddleware
 from app.middleware.security import (
     SecurityHeadersMiddleware,
     HTTPSRedirectMiddleware,
     run_security_validation
 )
-from app.logging_config import setup_logging
-import sentry_sdk
-from sentry_sdk.integrations.fastapi import FastApiIntegration
-from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 
-# Initialize logging first
-logger = setup_logging()
-
-# Initialize Sentry
+# Initialize Sentry (optional)
 if settings.sentry_dsn:
+    import sentry_sdk
+    from sentry_sdk.integrations.fastapi import FastApiIntegration
+    from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
     sentry_sdk.init(
         dsn=settings.sentry_dsn,
         environment=settings.environment,
@@ -35,10 +46,15 @@ if settings.sentry_dsn:
         send_default_pii=False,
     )
     logger.info("Sentry initialized for error tracking")
+else:
+    logger.warning("SENTRY_DSN not set - error tracking disabled in production")
 
 # Create database tables on startup
-Base.metadata.create_all(bind=engine)
-logger.info("Database tables created/verified")
+try:
+    Base.metadata.create_all(bind=engine)
+    logger.info("Database tables created/verified")
+except Exception as e:
+    logger.error(f"Database table creation failed: {e}", exc_info=True)
 
 app = FastAPI(
     title="AI Code Review Assistant",

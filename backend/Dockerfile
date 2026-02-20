@@ -15,7 +15,8 @@ RUN groupadd -r appuser && useradd -r -g appuser appuser
 
 # Install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt \
+    && rm -rf /root/.cache /tmp/*
 
 # Copy application code
 COPY . .
@@ -26,11 +27,7 @@ RUN mkdir -p /app/keys && chown -R appuser:appuser /app
 # Switch to non-root user
 USER appuser
 
-# Health check (uses localhost:8000 as default, Render health checks use the exposed port)
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:${PORT:-8000}/api/health || exit 1
-
 EXPOSE 8000
 
-# Use shell form to allow $PORT expansion (Render provides PORT dynamically)
-CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Use exec form with shell wrapper so $PORT is expanded at runtime
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
