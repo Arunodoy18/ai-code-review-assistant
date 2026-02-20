@@ -36,15 +36,30 @@ from app.database import get_db
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
+def _truncate_password(password: str, max_bytes: int = 72) -> str:
+    """Truncate password to fit bcrypt's 72-byte limit while preserving UTF-8 integrity."""
+    encoded = password.encode('utf-8')
+    if len(encoded) <= max_bytes:
+        return password
+    
+    # Truncate character by character until we fit
+    for i in range(len(password), 0, -1):
+        truncated = password[:i].encode('utf-8')
+        if len(truncated) <= max_bytes:
+            return password[:i]
+    
+    return password[:1]  # Fallback: at least 1 character
+
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     # Bcrypt has a 72-byte limit, truncate to match hashing behavior
-    safe_password = plain_password.encode('utf-8')[:72].decode('utf-8', errors='ignore')
+    safe_password = _truncate_password(plain_password)
     return pwd_context.verify(safe_password, hashed_password)
 
 
 def get_password_hash(password: str) -> str:
     # Bcrypt has a 72-byte limit, truncate to avoid errors
-    safe_password = password.encode('utf-8')[:72].decode('utf-8', errors='ignore')
+    safe_password = _truncate_password(password)
     return pwd_context.hash(safe_password)
 
 
