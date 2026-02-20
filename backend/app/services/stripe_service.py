@@ -4,10 +4,9 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
 
-from app.config import get_settings
+from app.config import settings
 from app.models import User, Subscription, SubscriptionTier, SubscriptionStatus, BillingInterval
 
-settings = get_settings()
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
 

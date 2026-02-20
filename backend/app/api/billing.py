@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.database import get_db
+from app.config import settings
 from app.models import User, Subscription, SubscriptionTier, BillingInterval
 from app.api.auth import get_current_user
 from app.services.stripe_service import StripeService
@@ -217,9 +218,6 @@ async def create_checkout_session(
     
     # Create checkout session
     try:
-        from app.config import get_settings
-        settings = get_settings()
-        
         session = await StripeService.create_checkout_session(
             user=current_user,
             tier=tier,
@@ -242,9 +240,6 @@ async def create_billing_portal_session(
         raise HTTPException(status_code=400, detail="No billing account found")
     
     try:
-        from app.config import get_settings
-        settings = get_settings()
-        
         session = await StripeService.create_billing_portal_session(
             user=current_user,
             return_url=f"{settings.frontend_url}/dashboard",
