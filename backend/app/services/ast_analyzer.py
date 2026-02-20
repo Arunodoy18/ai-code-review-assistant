@@ -5,16 +5,8 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-try:
-    from tree_sitter import Language, Parser
-    import tree_sitter_python
-    import tree_sitter_javascript
-    import tree_sitter_typescript
-    
-    TREE_SITTER_AVAILABLE = True
-except ImportError:
-    logger.warning("tree-sitter not available. AST analysis will be disabled.")
-    TREE_SITTER_AVAILABLE = False
+# tree-sitter is loaded lazily inside ASTAnalyzer.__init__ to avoid
+# heavy native-library loading at import time (cloud-safe startup).
 
 
 class ASTAnalyzer:
@@ -22,21 +14,29 @@ class ASTAnalyzer:
     
     def __init__(self):
         """Initialize AST analyzer with language parsers"""
-        if not TREE_SITTER_AVAILABLE:
-            logger.warning("AST analysis disabled - tree-sitter not installed")
+        try:
+            from tree_sitter import Language, Parser
+            import tree_sitter_python
+            import tree_sitter_javascript
+            import tree_sitter_typescript
+
+            self._Language = Language
+            self._Parser = Parser
+            # Initialize parsers for different languages
+            self.parsers = {
+                "python": self._create_parser(Language(tree_sitter_python.language())),
+                "javascript": self._create_parser(Language(tree_sitter_javascript.language())),
+                "typescript": self._create_parser(Language(tree_sitter_typescript.language_typescript())),
+            }
+            self._available = True
+        except Exception as exc:
+            logger.warning("tree-sitter not available (%s). AST analysis will be disabled.", exc)
             self.parsers = {}
-            return
-        
-        # Initialize parsers for different languages
-        self.parsers = {
-            "python": self._create_parser(Language(tree_sitter_python.language())),
-            "javascript": self._create_parser(Language(tree_sitter_javascript.language())),
-            "typescript": self._create_parser(Language(tree_sitter_typescript.language_typescript())),
-        }
+            self._available = False
     
-    def _create_parser(self, language: 'Language') -> 'Parser':
+    def _create_parser(self, language) -> 'object':
         """Create a parser for a specific language"""
-        parser = Parser()
+        parser = self._Parser()
         parser.set_language(language)
         return parser
     
@@ -56,7 +56,7 @@ class ASTAnalyzer:
             - complexity: Code complexity metrics
             - structure: High-level code structure
         """
-        if not TREE_SITTER_AVAILABLE:
+        if not self._available:
             return self._empty_analysis()
         
         parser = self.parsers.get(language)

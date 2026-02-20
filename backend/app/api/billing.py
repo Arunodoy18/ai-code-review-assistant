@@ -66,7 +66,7 @@ async def get_subscription_plans():
     plans = []
     
     for tier in [SubscriptionTier.FREE, SubscriptionTier.PRO, SubscriptionTier.ENTERPRISE]:
-        pricing = StripeService.PRICING[tier]
+        pricing = StripeService._get_pricing()[tier]
         
         # Define features for each tier
         if tier == SubscriptionTier.FREE:

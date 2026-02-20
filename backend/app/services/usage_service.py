@@ -48,11 +48,12 @@ class UsageService:
     def get_analyses_limit(user: User) -> int:
         """Get analyses limit for user based on subscription tier."""
         tier = user.subscription_tier
-        pricing = StripeService.PRICING.get(SubscriptionTier(tier))
+        pricing_map = StripeService._get_pricing()
+        pricing = pricing_map.get(SubscriptionTier(tier))
         
         if not pricing:
             # Default to FREE tier
-            return StripeService.PRICING[SubscriptionTier.FREE]["analyses_limit"]
+            return pricing_map[SubscriptionTier.FREE]["analyses_limit"]
         
         return pricing["analyses_limit"]
     

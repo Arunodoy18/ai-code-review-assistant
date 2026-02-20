@@ -27,6 +27,16 @@ def str_to_bool(value: str | None, default: bool = False) -> bool:
     return value.strip().lower() in {"1", "true", "yes"}
 
 
+def _safe_int(value: str | None, default: int) -> int:
+    """Parse an env-var string to int, returning *default* on any failure."""
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
+
+
 class Settings(BaseSettings):
     """Application runtime configuration with local-first defaults."""
 
@@ -60,14 +70,14 @@ class Settings(BaseSettings):
     
     # Email (Phase 3A)
     smtp_host: str = Field(default=os.getenv("SMTP_HOST", "smtp.gmail.com"))
-    smtp_port: int = Field(default=int(os.getenv("SMTP_PORT", "587")))
+    smtp_port: int = Field(default_factory=lambda: _safe_int(os.getenv("SMTP_PORT"), 587))
     smtp_username: Optional[str] = Field(default=os.getenv("SMTP_USERNAME"))
     smtp_password: Optional[str] = Field(default=os.getenv("SMTP_PASSWORD"))
     smtp_from_email: str = Field(default=os.getenv("SMTP_FROM_EMAIL", "noreply@codereview.ai"))
     smtp_from_name: str = Field(default=os.getenv("SMTP_FROM_NAME", "AI Code Review"))
     enable_email: bool = Field(default_factory=lambda: str_to_bool(os.getenv("ENABLE_EMAIL")))
-    email_verification_token_expire_hours: int = Field(default=int(os.getenv("EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS", "24")))
-    password_reset_token_expire_hours: int = Field(default=int(os.getenv("PASSWORD_RESET_TOKEN_EXPIRE_HOURS", "1")))
+    email_verification_token_expire_hours: int = Field(default_factory=lambda: _safe_int(os.getenv("EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS"), 24))
+    password_reset_token_expire_hours: int = Field(default_factory=lambda: _safe_int(os.getenv("PASSWORD_RESET_TOKEN_EXPIRE_HOURS"), 1))
     
     # Stripe (Phase 3B)
     STRIPE_SECRET_KEY: str = Field(default=os.getenv("STRIPE_SECRET_KEY", ""))
@@ -81,19 +91,19 @@ class Settings(BaseSettings):
     
     # Environment
     environment: str = Field(default=os.getenv("ENVIRONMENT", "development"))
-    port: int = Field(default=int(os.getenv("PORT", "10000")))
+    port: int = Field(default_factory=lambda: _safe_int(os.getenv("PORT"), 10000))
     frontend_url: str = Field(default=os.getenv("FRONTEND_URL", "http://localhost:5173"))
     
     # Error Tracking
     sentry_dsn: Optional[str] = Field(default=os.getenv("SENTRY_DSN"))
-    sentry_traces_sample_rate: float = Field(default=float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1")))
+    sentry_traces_sample_rate: float = Field(default=0.1)
     
     # Rate Limiting
-    rate_limit_per_minute: int = Field(default=int(os.getenv("RATE_LIMIT_PER_MINUTE", "60")))
+    rate_limit_per_minute: int = Field(default_factory=lambda: _safe_int(os.getenv("RATE_LIMIT_PER_MINUTE"), 60))
     
     # Analysis Config
-    max_files_per_analysis: int = Field(default=int(os.getenv("MAX_FILES_PER_ANALYSIS", "50")))
-    max_lines_per_llm_call: int = Field(default=int(os.getenv("MAX_LINES_PER_LLM_CALL", "500")))
+    max_files_per_analysis: int = Field(default_factory=lambda: _safe_int(os.getenv("MAX_FILES_PER_ANALYSIS"), 50))
+    max_lines_per_llm_call: int = Field(default_factory=lambda: _safe_int(os.getenv("MAX_LINES_PER_LLM_CALL"), 500))
 
     _resolved_private_key_path: Optional[Path] = None
 

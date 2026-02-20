@@ -6,15 +6,10 @@ from typing import TYPE_CHECKING, List, Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
-try:
-    import numpy as np
-    from sentence_transformers import SentenceTransformer
-    SENTENCE_TRANSFORMERS_AVAILABLE = True
-except ImportError:
-    np = None  # type: ignore
-    SentenceTransformer = None  # type: ignore
-    SENTENCE_TRANSFORMERS_AVAILABLE = False
-    logger.debug("numpy/sentence-transformers not available. Semantic search will be disabled.")
+# Heavy imports (numpy, sentence-transformers/PyTorch) are deferred to
+# SemanticSearchService.__init__ so that module import is instant.
+np = None  # populated lazily
+SentenceTransformer = None  # populated lazily
 
 
 class SemanticSearchService:
@@ -27,14 +22,22 @@ class SemanticSearchService:
             model_name: Sentence transformer model to use.
                         all-MiniLM-L6-v2 is lightweight (80MB), fast, and produces 384-dim embeddings.
         """
+        global np, SentenceTransformer
+
         self.model_name = model_name
         self.model = None
         self.embedding_dim = 384  # Default for all-MiniLM-L6-v2
-        
-        if not SENTENCE_TRANSFORMERS_AVAILABLE:
-            logger.debug("Semantic search disabled - sentence-transformers not installed")
+
+        # Attempt heavy imports only on first instantiation
+        try:
+            import numpy as _np
+            from sentence_transformers import SentenceTransformer as _ST
+            np = _np
+            SentenceTransformer = _ST
+        except ImportError:
+            logger.debug("Semantic search disabled - sentence-transformers/numpy not installed")
             return
-        
+
         try:
             # Load model (downloads ~80MB on first run, then cached locally)
             logger.info(f"Loading embedding model: {model_name}")

@@ -9,47 +9,65 @@ from app.models import User, Subscription, SubscriptionTier, SubscriptionStatus,
 
 logger = logging.getLogger(__name__)
 
-try:
-    import stripe
-    stripe.api_key = settings.STRIPE_SECRET_KEY
-except ImportError:
-    stripe = None  # type: ignore
-    logger.debug("stripe package not installed. Billing features will be unavailable.")
+# Stripe is imported lazily — no global api_key assignment at module level.
+stripe = None  # type: ignore
+_stripe_loaded = False
+
+
+def _ensure_stripe():
+    """Lazy-load the stripe SDK and set the API key on first use."""
+    global stripe, _stripe_loaded
+    if _stripe_loaded:
+        return stripe is not None
+    _stripe_loaded = True
+    try:
+        import stripe as _stripe_mod
+        _stripe_mod.api_key = settings.STRIPE_SECRET_KEY
+        stripe = _stripe_mod
+        return True
+    except ImportError:
+        logger.debug("stripe package not installed. Billing features will be unavailable.")
+        return False
 
 
 class StripeService:
     """Service for managing Stripe billing operations."""
     
-    # Pricing configuration
-    PRICING = {
-        SubscriptionTier.FREE: {
-            "monthly_price": 0,
-            "yearly_price": 0,
-            "analyses_limit": 10,
-            "stripe_price_id_monthly": None,
-            "stripe_price_id_yearly": None,
-        },
-        SubscriptionTier.PRO: {
-            "monthly_price": 29,
-            "yearly_price": 290,  # ~17% discount
-            "analyses_limit": 100,
-            "stripe_price_id_monthly": settings.STRIPE_PRO_MONTHLY_PRICE_ID,
-            "stripe_price_id_yearly": settings.STRIPE_PRO_YEARLY_PRICE_ID,
-        },
-        SubscriptionTier.ENTERPRISE: {
-            "monthly_price": 99,
-            "yearly_price": 990,  # ~17% discount
-            "analyses_limit": -1,  # Unlimited
-            "stripe_price_id_monthly": settings.STRIPE_ENTERPRISE_MONTHLY_PRICE_ID,
-            "stripe_price_id_yearly": settings.STRIPE_ENTERPRISE_YEARLY_PRICE_ID,
-        },
-    }
-    
+    # Pricing configuration — stripe price IDs are resolved at call time
+    # via _get_pricing() so settings are not read at class-definition time.
     TRIAL_DAYS = 14
+
+    @staticmethod
+    def _get_pricing():
+        """Return pricing dict, reading settings lazily."""
+        return {
+            SubscriptionTier.FREE: {
+                "monthly_price": 0,
+                "yearly_price": 0,
+                "analyses_limit": 10,
+                "stripe_price_id_monthly": None,
+                "stripe_price_id_yearly": None,
+            },
+            SubscriptionTier.PRO: {
+                "monthly_price": 29,
+                "yearly_price": 290,
+                "analyses_limit": 100,
+                "stripe_price_id_monthly": settings.STRIPE_PRO_MONTHLY_PRICE_ID,
+                "stripe_price_id_yearly": settings.STRIPE_PRO_YEARLY_PRICE_ID,
+            },
+            SubscriptionTier.ENTERPRISE: {
+                "monthly_price": 99,
+                "yearly_price": 990,
+                "analyses_limit": -1,
+                "stripe_price_id_monthly": settings.STRIPE_ENTERPRISE_MONTHLY_PRICE_ID,
+                "stripe_price_id_yearly": settings.STRIPE_ENTERPRISE_YEARLY_PRICE_ID,
+            },
+        }
     
     @staticmethod
     async def create_customer(user: User, db: Session) -> str:
         """Create a Stripe customer for the user."""
+        _ensure_stripe()
         try:
             customer = stripe.Customer.create(
                 email=user.email,
@@ -82,7 +100,8 @@ class StripeService:
             await StripeService.create_customer(user, db)
         
         # Get pricing info
-        pricing = StripeService.PRICING[tier]
+        _ensure_stripe()
+        pricing = StripeService._get_pricing()[tier]
         if billing_interval == BillingInterval.MONTHLY:
             price_id = pricing["stripe_price_id_monthly"]
         else:
@@ -147,7 +166,8 @@ class StripeService:
     ) -> Subscription:
         """Update an existing subscription (upgrade/downgrade)."""
         # Get new pricing info
-        pricing = StripeService.PRICING[new_tier]
+        _ensure_stripe()
+        pricing = StripeService._get_pricing()[new_tier]
         if new_billing_interval == BillingInterval.MONTHLY:
             new_price_id = pricing["stripe_price_id_monthly"]
         else:
@@ -247,7 +267,8 @@ class StripeService:
             raise ValueError("User must have a Stripe customer ID")
         
         # Get pricing info
-        pricing = StripeService.PRICING[tier]
+        _ensure_stripe()
+        pricing = StripeService._get_pricing()[tier]
         if billing_interval == BillingInterval.MONTHLY:
             price_id = pricing["stripe_price_id_monthly"]
         else:
@@ -289,6 +310,7 @@ class StripeService:
         if not user.stripe_customer_id:
             raise ValueError("User must have a Stripe customer ID")
         
+        _ensure_stripe()
         try:
             session = stripe.billing_portal.Session.create(
                 customer=user.stripe_customer_id,
@@ -304,6 +326,7 @@ class StripeService:
     @staticmethod
     async def handle_webhook(payload: bytes, signature: str, db: Session) -> Dict[str, Any]:
         """Handle Stripe webhook events."""
+        _ensure_stripe()
         try:
             event = stripe.Webhook.construct_event(
                 payload,
