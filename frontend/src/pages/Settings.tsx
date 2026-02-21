@@ -1,25 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api as apiClient } from '../api/client';
 import { ApiKeysResponse } from '../types';
-import { Key, Shield, Zap, Brain, Globe, CheckCircle2, AlertCircle, Eye, EyeOff, Sparkles, Github } from 'lucide-react';
-
-const LLM_PROVIDERS = [
-  { value: 'groq', label: 'Groq (Recommended)', description: 'Llama 3.3 70B — fastest & free tier', icon: Zap },
-  { value: 'anthropic', label: 'Anthropic', description: 'Claude 3 — balanced reasoning', icon: Shield },
-  { value: 'google', label: 'Google', description: 'Gemini Pro — cost effective', icon: Globe },
-  { value: 'openai', label: 'OpenAI', description: 'GPT-4 Turbo — optional alternative', icon: Brain },
-];
+import { Github, CheckCircle2, AlertCircle, Eye, EyeOff, Loader } from 'lucide-react';
 
 export default function Settings() {
   const queryClient = useQueryClient();
-  const [groqKey, setGroqKey] = useState('');
-  const [openaiKey, setOpenaiKey] = useState('');
-  const [anthropicKey, setAnthropicKey] = useState('');
-  const [googleKey, setGoogleKey] = useState('');
   const [githubToken, setGithubToken] = useState('');
-  const [provider, setProvider] = useState('groq');
-  const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
+  const [showToken, setShowToken] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [testingGitHub, setTestingGitHub] = useState(false);
@@ -30,47 +18,30 @@ export default function Settings() {
     queryFn: apiClient.getApiKeys,
   });
 
-  useEffect(() => {
-    if (apiKeys) {
-      setProvider(apiKeys.preferred_llm_provider || 'groq');
-    }
-  }, [apiKeys]);
-
   const saveMutation = useMutation({
     mutationFn: (keys: any) => apiClient.updateApiKeys(keys),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['api-keys'] });
       setSaveSuccess(true);
       setSaveError('');
-      // Clear the key fields after save
-      setGroqKey('');
-      setOpenaiKey('');
-      setAnthropicKey('');
-      setGoogleKey('');
       setGithubToken('');
       setGithubTestResult(null);
       setTimeout(() => setSaveSuccess(false), 3000);
     },
     onError: (error: any) => {
-      setSaveError(error.message || 'Failed to save API keys');
+      setSaveError(error.message || 'Failed to save GitHub token');
       setSaveSuccess(false);
     },
   });
 
   const handleSave = () => {
-    const keys: any = { preferred_llm_provider: provider };
-    if (groqKey) keys.groq_api_key = groqKey;
-    if (openaiKey) keys.openai_api_key = openaiKey;
-    if (anthropicKey) keys.anthropic_api_key = anthropicKey;
-    if (googleKey) keys.google_api_key = googleKey;
-    if (githubToken) keys.github_token = githubToken;
-    saveMutation.mutate(keys);
+    if (githubToken) {
+      saveMutation.mutate({ github_token: githubToken });
+    }
   };
 
-  const handleClearKey = (keyName: string) => {
-    const keys: any = {};
-    keys[keyName] = '';
-    saveMutation.mutate(keys);
+  const handleClearToken = () => {
+    saveMutation.mutate({ github_token: '' });
   };
 
   const handleTestGitHub = async () => {
@@ -86,38 +57,34 @@ export default function Settings() {
     }
   };
 
-  const toggleShowKey = (key: string) => {
-    setShowKeys(prev => ({ ...prev, [key]: !prev[key] }));
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-2 border-copper-500 border-t-transparent rounded-full animate-spin" />
+        <Loader className="w-8 h-8 text-copper-500 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 max-w-3xl mx-auto">
+    <div className="space-y-8 max-w-2xl mx-auto">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-sand-100 flex items-center gap-3">
           <div className="p-2 bg-surface-2 rounded-xl border border-surface-4">
-            <Key className="w-6 h-6 text-copper-400" />
+            <Github className="w-6 h-6 text-copper-400" />
           </div>
-          API Keys & Provider
+          GitHub Integration
         </h1>
         <p className="text-sand-500 mt-2">
-          Configure your LLM API keys for AI-powered code analysis. Your keys are encrypted and never shared.
+          Connect your GitHub account to analyze your repositories. AI-powered analysis is provided by our service — no additional API keys needed!
         </p>
       </div>
 
-      {/* Status Banner */}
+      {/* Status Banners */}
       {saveSuccess && (
         <div className="flex items-center gap-3 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
           <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-          <p className="text-sm text-emerald-300">API keys saved successfully.</p>
+          <p className="text-sm text-emerald-300">GitHub token saved successfully!</p>
         </div>
       )}
       {saveError && (
@@ -127,123 +94,73 @@ export default function Settings() {
         </div>
       )}
 
-      {/* Preferred Provider */}
+      {/* GitHub Integration Card */}
       <div className="bg-surface-1 border border-surface-4 rounded-2xl p-6">
-        <h2 className="text-lg font-semibold text-sand-100 mb-1 flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-copper-400" />
-          Preferred AI Provider
-        </h2>
-        <p className="text-sm text-sand-600 mb-5">
-          Choose which LLM provider powers your code reviews. You need at least one API key configured.
-        </p>
-        
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {LLM_PROVIDERS.map((p) => {
-            const Icon = p.icon;
-            const isSelected = provider === p.value;
-            const hasKey = apiKeys ? (apiKeys as any)[`has_${p.value}_key`] : false;
-            
-            return (
+        <div className="space-y-4">
+          <div>
+            <label className="flex items-center gap-2 text-sm font-medium text-sand-300 mb-2">
+              <Github className="w-4 h-4 text-sand-600" />
+              GitHub Personal Access Token
+              {apiKeys?.has_github_token && (
+                <span className="text-[10px] px-2 py-1 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20">
+                  ✓ connected
+                </span>
+              )}
+              {apiKeys?.github_username && (
+                <span className="text-xs text-sand-500">
+                  @{apiKeys.github_username}
+                </span>
+              )}
+            </label>
+            <div className="relative">
+              <input
+                type={showToken ? 'text' : 'password'}
+                value={githubToken}
+                onChange={(e) => setGithubToken(e.target.value)}
+                placeholder={apiKeys?.has_github_token ? '••••••••••••••••••••' : 'ghp_...'}
+                className="w-full px-4 py-3 pr-12 bg-surface-2 border border-surface-4 rounded-xl text-sand-200 placeholder:text-sand-700 focus:border-copper-600 focus:outline-none focus:ring-1 focus:ring-copper-600/50 transition-all text-sm font-mono"
+              />
               <button
-                key={p.value}
-                onClick={() => setProvider(p.value)}
-                className={`flex items-start gap-3 p-4 rounded-xl border transition-all duration-200 text-left ${
-                  isSelected
-                    ? 'bg-copper-500/10 border-copper-500/40 shadow-inner-glow'
-                    : 'bg-surface-2 border-surface-4 hover:border-surface-6'
-                }`}
+                onClick={() => setShowToken(!showToken)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-sand-600 hover:text-sand-400 transition-colors"
               >
-                <div className={`p-2 rounded-lg ${isSelected ? 'bg-copper-500/20' : 'bg-surface-3'}`}>
-                  <Icon className={`w-5 h-5 ${isSelected ? 'text-copper-400' : 'text-sand-500'}`} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-sm font-semibold ${isSelected ? 'text-copper-300' : 'text-sand-200'}`}>
-                      {p.label}
-                    </span>
-                    {hasKey && (
-                      <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20">
-                        active
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-sand-600 mt-0.5">{p.description}</p>
-                </div>
-                <div className={`mt-1 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                  isSelected ? 'border-copper-400' : 'border-surface-6'
-                }`}>
-                  {isSelected && <div className="w-2 h-2 bg-copper-400 rounded-full" />}
-                </div>
+                {showToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* GitHub Integration */}
-      <div className="bg-surface-1 border border-surface-4 rounded-2xl p-6">
-        <h2 className="text-lg font-semibold text-sand-100 mb-1 flex items-center gap-2">
-          <Github className="w-5 h-5 text-copper-400" />
-          GitHub Integration
-        </h2>
-        <p className="text-sm text-sand-600 mb-5">
-          Connect your GitHub account using a Personal Access Token to enable repository analysis.
-        </p>
-
-        <div className="space-y-3">
-          <label className="flex items-center gap-2 text-sm font-medium text-sand-300">
-            <Github className="w-4 h-4 text-sand-600" />
-            GitHub Personal Access Token
-            {apiKeys?.has_github_token && (
-              <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20">
-                connected
-              </span>
-            )}
-            {apiKeys?.github_username && (
-              <span className="text-xs text-sand-500">
-                @{apiKeys.github_username}
-              </span>
-            )}
-          </label>
-          <div className="relative">
-            <input
-              type={showKeys.github ? 'text' : 'password'}
-              value={githubToken}
-              onChange={(e) => setGithubToken(e.target.value)}
-              placeholder={apiKeys?.has_github_token ? '••••••••••••••••••••' : 'ghp_...'}
-              className="w-full px-4 py-3 bg-surface-2 border border-surface-4 rounded-xl text-sand-200 placeholder:text-sand-700 focus:border-copper-600 focus:outline-none focus:ring-1 focus:ring-copper-600/50 transition-all text-sm font-mono"
-            />
-            <button
-              onClick={() => toggleShowKey('github')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-sand-600 hover:text-sand-400"
-            >
-              {showKeys.github ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Action Buttons */}
+          <div className="flex items-center gap-3">
             {apiKeys?.has_github_token && (
-              <button
-                onClick={handleTestGitHub}
-                disabled={testingGitHub}
-                className="text-xs px-3 py-1.5 bg-surface-3 hover:bg-surface-4 text-sand-300 rounded-lg transition-colors border border-surface-5"
-              >
-                {testingGitHub ? 'Testing...' : 'Test Connection'}
-              </button>
-            )}
-            {apiKeys?.has_github_token && (
-              <button
-                onClick={() => handleClearKey('github_token')}
-                className="text-xs text-red-400/70 hover:text-red-400 transition-colors"
-              >
-                Remove token
-              </button>
+              <>
+                <button
+                  onClick={handleTestGitHub}
+                  disabled={testingGitHub}
+                  className="text-sm px-4 py-2 bg-surface-3 hover:bg-surface-4 text-sand-300 rounded-lg transition-colors border border-surface-5 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {testingGitHub ? (
+                    <>
+                      <Loader className="w-4 h-4 animate-spin" />
+                      Testing...
+                    </>
+                  ) : (
+                    'Test Connection'
+                  )}
+                </button>
+                <button
+                  onClick={handleClearToken}
+                  className="text-sm text-red-400/70 hover:text-red-400 transition-colors"
+                >
+                  Remove token
+                </button>
+              </>
             )}
           </div>
 
+          {/* Test Result */}
           {githubTestResult && (
             <div
-              className={`p-3 rounded-lg border text-sm ${
+              className={`p-4 rounded-lg border text-sm ${
                 githubTestResult.valid
                   ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
                   : 'bg-red-500/10 border-red-500/20 text-red-300'
@@ -253,7 +170,7 @@ export default function Settings() {
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4" />
                   <span>
-                    Connected as <strong>@{githubTestResult.login}</strong>
+                    ✓ Connected as <strong>@{githubTestResult.login}</strong>
                   </span>
                 </div>
               ) : (
@@ -265,169 +182,38 @@ export default function Settings() {
             </div>
           )}
 
-          <p className="text-xs text-sand-700">
-            Create a token at{' '}
-            <a
-              href="https://github.com/settings/tokens/new?scopes=repo,write:repo_hook"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-copper-400 hover:text-copper-300 underline"
-            >
-              github.com/settings/tokens
-            </a>
-            {' '}with <code className="px-1 py-0.5 bg-surface-3 rounded text-[11px]">repo</code> scope.
-          </p>
-        </div>
-      </div>
-
-      {/* API Keys */}
-      <div className="bg-surface-1 border border-surface-4 rounded-2xl p-6 space-y-5">
-        <div>
-          <h2 className="text-lg font-semibold text-sand-100 mb-1 flex items-center gap-2">
-            <Shield className="w-5 h-5 text-copper-400" />
-            LLM API Keys
-          </h2>
-          <p className="text-sm text-sand-600">
-            Enter your API keys below. Keys are masked after saving — leave blank to keep existing key unchanged.
-          </p>
-        </div>
-
-        {/* Groq */}
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 text-sm font-medium text-sand-300">
-            <Zap className="w-4 h-4 text-sand-600" />
-            Groq API Key
-            {apiKeys?.has_groq_key && (
-              <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20">configured</span>
-            )}
-          </label>
-          <div className="relative">
-            <input
-              type={showKeys.groq ? 'text' : 'password'}
-              value={groqKey}
-              onChange={(e) => setGroqKey(e.target.value)}
-              placeholder={apiKeys?.has_groq_key ? '••••••••••••••••••••' : 'gsk_...'}
-              className="w-full px-4 py-3 bg-surface-2 border border-surface-4 rounded-xl text-sand-200 placeholder:text-sand-700 focus:border-copper-600 focus:outline-none focus:ring-1 focus:ring-copper-600/50 transition-all text-sm font-mono"
-            />
-            <button
-              onClick={() => toggleShowKey('groq')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-sand-600 hover:text-sand-400"
-            >
-              {showKeys.groq ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
+          {/* Instructions */}
+          <div className="bg-surface-2/50 border border-surface-4 rounded-lg p-4 space-y-2">
+            <p className="text-xs font-medium text-sand-400">How to create a GitHub token:</p>
+            <ol className="text-xs text-sand-600 space-y-1 list-decimal list-inside">
+              <li>Go to <a
+                href="https://github.com/settings/tokens/new?scopes=repo"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-copper-400 hover:text-copper-300 underline"
+              >
+                github.com/settings/tokens
+              </a></li>
+              <li>Click "Generate new token (classic)"</li>
+              <li>Give it a name like "CodeLens AI"</li>
+              <li>Select the <code className="px-1.5 py-0.5 bg-surface-3 rounded text-[11px] font-mono">repo</code> scope</li>
+              <li>Click "Generate token" and paste it above</li>
+            </ol>
           </div>
-          {apiKeys?.has_groq_key && (
-            <button onClick={() => handleClearKey('groq_api_key')} className="text-xs text-red-400/70 hover:text-red-400 transition-colors">
-              Remove key
-            </button>
-          )}
-        </div>
-
-        {/* OpenAI */}
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 text-sm font-medium text-sand-300">
-            <Brain className="w-4 h-4 text-sand-600" />
-            OpenAI API Key
-            {apiKeys?.has_openai_key && (
-              <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20">configured</span>
-            )}
-          </label>
-          <div className="relative">
-            <input
-              type={showKeys.openai ? 'text' : 'password'}
-              value={openaiKey}
-              onChange={(e) => setOpenaiKey(e.target.value)}
-              placeholder={apiKeys?.has_openai_key ? '••••••••••••••••••••' : 'sk-...'}
-              className="w-full px-4 py-3 bg-surface-2 border border-surface-4 rounded-xl text-sand-200 placeholder:text-sand-700 focus:border-copper-600 focus:outline-none focus:ring-1 focus:ring-copper-600/50 transition-all text-sm font-mono"
-            />
-            <button
-              onClick={() => toggleShowKey('openai')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-sand-600 hover:text-sand-400"
-            >
-              {showKeys.openai ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
-          {apiKeys?.has_openai_key && (
-            <button onClick={() => handleClearKey('openai_api_key')} className="text-xs text-red-400/70 hover:text-red-400 transition-colors">
-              Remove key
-            </button>
-          )}
-        </div>
-
-        {/* Anthropic */}
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 text-sm font-medium text-sand-300">
-            <Shield className="w-4 h-4 text-sand-600" />
-            Anthropic API Key
-            {apiKeys?.has_anthropic_key && (
-              <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20">configured</span>
-            )}
-          </label>
-          <div className="relative">
-            <input
-              type={showKeys.anthropic ? 'text' : 'password'}
-              value={anthropicKey}
-              onChange={(e) => setAnthropicKey(e.target.value)}
-              placeholder={apiKeys?.has_anthropic_key ? '••••••••••••••••••••' : 'sk-ant-...'}
-              className="w-full px-4 py-3 bg-surface-2 border border-surface-4 rounded-xl text-sand-200 placeholder:text-sand-700 focus:border-copper-600 focus:outline-none focus:ring-1 focus:ring-copper-600/50 transition-all text-sm font-mono"
-            />
-            <button
-              onClick={() => toggleShowKey('anthropic')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-sand-600 hover:text-sand-400"
-            >
-              {showKeys.anthropic ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
-          {apiKeys?.has_anthropic_key && (
-            <button onClick={() => handleClearKey('anthropic_api_key')} className="text-xs text-red-400/70 hover:text-red-400 transition-colors">
-              Remove key
-            </button>
-          )}
-        </div>
-
-        {/* Google */}
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 text-sm font-medium text-sand-300">
-            <Globe className="w-4 h-4 text-sand-600" />
-            Google AI API Key
-            {apiKeys?.has_google_key && (
-              <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20">configured</span>
-            )}
-          </label>
-          <div className="relative">
-            <input
-              type={showKeys.google ? 'text' : 'password'}
-              value={googleKey}
-              onChange={(e) => setGoogleKey(e.target.value)}
-              placeholder={apiKeys?.has_google_key ? '••••••••••••••••••••' : 'Enter your Google API key'}
-              className="w-full px-4 py-3 bg-surface-2 border border-surface-4 rounded-xl text-sand-200 placeholder:text-sand-700 focus:border-copper-600 focus:outline-none focus:ring-1 focus:ring-copper-600/50 transition-all text-sm font-mono"
-            />
-            <button
-              onClick={() => toggleShowKey('google')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-sand-600 hover:text-sand-400"
-            >
-              {showKeys.google ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
-          {apiKeys?.has_google_key && (
-            <button onClick={() => handleClearKey('google_api_key')} className="text-xs text-red-400/70 hover:text-red-400 transition-colors">
-              Remove key
-            </button>
-          )}
         </div>
       </div>
 
       {/* Save Button */}
       <div className="flex items-center justify-between pt-2">
         <p className="text-xs text-sand-700">
-          Your keys are stored encrypted and never leave our servers.
+          🔒 Your token is stored encrypted and never shared
         </p>
         <button
           onClick={handleSave}
-          disabled={saveMutation.isPending}
-          className="px-6 py-2.5 bg-copper-600 hover:bg-copper-500 disabled:opacity-50 text-surface-0 text-sm font-semibold rounded-xl transition-all shadow-md hover:shadow-lg"
+          disabled={saveMutation.isPending || !githubToken}
+          className="px-6 py-2.5 bg-copper-600 hover:bg-copper-500 disabled:opacity-50 disabled:cursor-not-allowed text-surface-0 text-sm font-semibold rounded-xl transition-all shadow-md hover:shadow-lg"
         >
-          {saveMutation.isPending ? 'Saving...' : 'Save Changes'}
+          {saveMutation.isPending ? 'Saving...' : 'Save Token'}
         </button>
       </div>
     </div>

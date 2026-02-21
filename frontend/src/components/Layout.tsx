@@ -22,7 +22,7 @@ export default function Layout({ children }: LayoutProps) {
     { path: '/', label: 'Dashboard', icon: Activity },
     { path: '/projects', label: 'Projects', icon: FolderGit2 },
     { path: '/configuration', label: 'Rules', icon: Settings },
-    { path: '/settings', label: 'API Keys', icon: Key },
+    { path: '/settings', label: 'GitHub', icon: Key },
   ]
 
   return (
