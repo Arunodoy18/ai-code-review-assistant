@@ -21,11 +21,11 @@ except ImportError as _exc:
     ) from _exc
 
 try:
-    from passlib.context import CryptContext
+    import bcrypt
 except ImportError as _exc:
     raise ImportError(
-        "passlib is required for password hashing. "
-        "Install it with: pip install passlib[bcrypt]"
+        "bcrypt is required for password hashing. "
+        "Install it with: pip install bcrypt"
     ) from _exc
 
 from app.config import settings
@@ -33,34 +33,34 @@ from app.database import get_db
 
 # ── Password hashing ──────────────────────────────────────────────────────
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-
-def _truncate_password(password: str, max_bytes: int = 72) -> str:
+def _truncate_password(password: str, max_bytes: int = 72) -> bytes:
     """Truncate password to fit bcrypt's 72-byte limit while preserving UTF-8 integrity."""
     encoded = password.encode('utf-8')
     if len(encoded) <= max_bytes:
-        return password
+        return encoded
     
     # Truncate character by character until we fit
     for i in range(len(password), 0, -1):
         truncated = password[:i].encode('utf-8')
         if len(truncated) <= max_bytes:
-            return password[:i]
+            return truncated
     
-    return password[:1]  # Fallback: at least 1 character
+    return password[:1].encode('utf-8')  # Fallback: at least 1 character
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    # Bcrypt has a 72-byte limit, truncate to match hashing behavior
+    """Verify a plain password against a hashed password."""
     safe_password = _truncate_password(plain_password)
-    return pwd_context.verify(safe_password, hashed_password)
+    return bcrypt.checkpw(safe_password, hashed_password.encode('utf-8'))
 
 
 def get_password_hash(password: str) -> str:
-    # Bcrypt has a 72-byte limit, truncate to avoid errors
+    """Hash a password using bcrypt."""
     safe_password = _truncate_password(password)
-    return pwd_context.hash(safe_password)
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(safe_password, salt)
+    return hashed.decode('utf-8')
 
 
 # ── JWT tokens ─────────────────────────────────────────────────────────────
