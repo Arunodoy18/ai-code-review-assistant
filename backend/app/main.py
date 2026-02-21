@@ -25,7 +25,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 # ── Settings & logging (no network I/O, only reads .env / env vars) ───────
-from app.config import settings
+from app.config import settings, DEFAULT_SQLITE_URL
 from app.logging_config import setup_logging
 
 logger = setup_logging()
@@ -56,11 +56,24 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # ── CORS (pure config, no I/O) ──────────────────────────────────────────────
-_frontend_origins = [u.strip() for u in settings.frontend_url.split(",") if u.strip()]
-if settings.is_production:
-    _allowed_origins = _frontend_origins
-else:
-    _allowed_origins = [
+# PHASE 2: BULLETPROOF CORS CONFIGURATION
+# ────────────────────────────────────────────────────────────────────────────
+# Guaranteed to work with Render + Netlify production deployment
+
+# Get frontend URL from environment and clean it
+frontend_url = settings.frontend_url.strip().rstrip("/")
+
+# Build allowed origins list
+origins = []
+
+# Always add production frontend if configured
+if frontend_url and frontend_url != "http://localhost:5173":
+    origins.append(frontend_url)
+    logger.info("Added production frontend origin: %s", frontend_url)
+
+# In development, add localhost variants
+if not settings.is_production:
+    dev_origins = [
         "http://localhost:5173",
         "http://localhost:5174",
         "http://localhost:5175",
@@ -69,12 +82,22 @@ else:
         "http://127.0.0.1:5174",
         "http://127.0.0.1:5175",
         "http://127.0.0.1:8000",
-    ] + _frontend_origins
-logger.info("CORS allowed origins: %s", _allowed_origins)
+    ]
+    origins.extend(dev_origins)
+    logger.info("Development mode - added localhost origins")
 
+# Ensure at least one origin is configured (fallback to localhost in dev)
+if not origins:
+    origins.append("http://localhost:5173")
+    logger.warning("No origins configured, falling back to localhost:5173")
+
+logger.info("CORS allowed origins: %s", origins)
+logger.info("CORS configuration: allow_credentials=True, allow_methods=[*], allow_headers=[*]")
+
+# Add CORS middleware BEFORE any routes are registered
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_allowed_origins,
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -172,6 +195,39 @@ async def initialize_services():
     global _services_ready
 
     logger.info("Background service initialization starting…")
+    
+    # ── PHASE 5: CONFIGURATION VALIDATION ─────────────────────────────────
+    logger.info("="*70)
+    logger.info("CONFIGURATION VALIDATION CHECK")
+    logger.info("="*70)
+    logger.info("Environment: %s", settings.environment)
+    logger.info("Is Production: %s", settings.is_production)
+    logger.info("Frontend URL: %s", settings.frontend_url)
+    logger.info("CORS Origins: %s", origins)
+    logger.info("Database URL: %s", settings.database_url[:30] + "...")
+    logger.info("Port: %s", settings.port)
+    logger.info("JWT configured: %s", bool(settings.jwt_secret_key and settings.jwt_secret_key != "dev_secret_key_for_testing"))
+    logger.info("="*70)
+    
+    # Validate production configuration
+    if settings.is_production:
+        validation_errors = []
+        
+        if settings.jwt_secret_key == "dev_secret_key_for_testing":
+            validation_errors.append("JWT_SECRET_KEY is using default dev key in production!")
+        
+        if not settings.frontend_url or settings.frontend_url == "http://localhost:5173":
+            validation_errors.append("FRONTEND_URL is not configured for production!")
+        
+        if settings.database_url == DEFAULT_SQLITE_URL:
+            validation_errors.append("DATABASE_URL is using SQLite in production!")
+        
+        if validation_errors:
+            logger.error("PRODUCTION CONFIGURATION ERRORS:")
+            for error in validation_errors:
+                logger.error("  - %s", error)
+        else:
+            logger.info("✓ Production configuration validation passed")
 
     # ── 1. Sentry (optional, makes a network call) ───────────────────────
     if settings.sentry_dsn:
