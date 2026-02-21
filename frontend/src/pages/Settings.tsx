@@ -399,7 +399,7 @@ export default function Settings() {
               type={showKeys.google ? 'text' : 'password'}
               value={googleKey}
               onChange={(e) => setGoogleKey(e.target.value)}
-              placeholder={apiKeys?.has_google_key ? '••••••••••••••••••••' : 'AIza...'}
+              placeholder={apiKeys?.has_google_key ? '••••••••••••••••••••' : 'Enter your Google API key'}
               className="w-full px-4 py-3 bg-surface-2 border border-surface-4 rounded-xl text-sand-200 placeholder:text-sand-700 focus:border-copper-600 focus:outline-none focus:ring-1 focus:ring-copper-600/50 transition-all text-sm font-mono"
             />
             <button
